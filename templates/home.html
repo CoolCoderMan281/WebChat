@@ -1,0 +1,161 @@
+<!-- FILEPATH: /workspaces/WebChat/templates/home.html -->
+
+<!--
+    This HTML file represents the home page of a web chat application.
+    It contains a sidebar to display channels, input fields for username and message,
+    and a button to send the message.
+    The JavaScript code handles fetching channels, sending messages, and handling network errors.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .sidebar {
+            width: 200px;
+            background-color: #f1f1f1;
+            padding: 20px;
+            height: 100%; /* Add this line to set the height of the sidebar */
+        }
+        
+        .channel {
+            margin-bottom: 10px;
+        }
+        
+        .channel a {
+            text-decoration: none;
+            color: #333;
+        }
+        
+        .channel a:hover {
+            color: #000;
+        }
+    </style>
+    <script>
+        var channelId = "default"; // Define channelId at a global scope with the default value "default"
+        
+        function getChannels() {
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+            // Set the request method and URL
+            xhr.open("GET", "/getChannels", true);
+            
+            // Send the request
+            xhr.send();
+            
+            // Listen for the response
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    // Parse the response JSON
+                    var channels = JSON.parse(xhr.responseText);
+                    alert(JSON.parse(xhr.responseText));
+                    // Get the sidebar element
+                    var sidebar = document.getElementById("sidebar");
+
+                    // Clear the sidebar
+                    sidebar.innerHTML = "";
+
+                    // Add each channel to the sidebar
+                    channels.forEach(function(channel) {
+                        var channelElement = document.createElement("div");
+                        channelElement.classList.add("channel");
+
+                        var channelLink = document.createElement("a");
+                        channelLink.href = "#";
+                        channelLink.textContent = channel.name;
+
+                        channelLink.addEventListener("click", function() {
+                            // Set the channelId variable to the channel's id
+                            channelId = channel.id;
+                            // Call the sendMessage function
+                            sendMessage();
+                        });
+
+                        channelElement.appendChild(channelLink);
+                        sidebar.appendChild(channelElement);
+                    });
+
+                    // Display all the channels in an alert
+                    var channelNames = channels.map(function(channel) {
+                        return channel.name;
+                    });
+                    alert("Channels: " + channelNames.join(", "));
+                } else {
+                    // Display an error message to the user
+                    alert("Failed to get channels. Please try again later.");
+                }
+            };
+            };
+            
+            // Listen for any network errors
+            xhr.onerror = function() {
+                // Display an error message to the user
+                alert("Network error occurred. Please check your internet connection and try again.");
+            };
+        }
+        
+        function sendMessage() {
+            // Get the message and username from the input fields
+            var message = document.getElementById("messageInput").value;
+            var username = document.getElementById("usernameInput").value;
+            
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+            
+            // Set the request method and URL
+            xhr.open("POST", "/sendMessage", true);
+            
+            // Set the request header
+            xhr.setRequestHeader("Content-Type", "application/json");
+            
+            // Set the request body
+            var requestBody = JSON.stringify({ message: message, username: username, channelId: channelId });
+            
+            // Send the request
+            xhr.send(requestBody);
+            
+            // Listen for the response
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    // Display a success message to the user
+                    alert("Message delivered!");
+                } else {
+                    // Display an error message to the user
+                    alert("Failed to deliver message. Please try again later.");
+                }
+            };
+            
+            // Listen for any network errors
+            xhr.onerror = function() {
+                // Display an error message to the user
+                alert("Network error occurred. Please check your internet connection and try again.");
+            };
+        }
+    </script>
+</head>
+<body>
+    <div id="sidebar" class="sidebar"></div>
+    <h1>Hi</h1>
+    <label for="usernameInput">Username:</label>
+    <input type="text" id="usernameInput" placeholder="Enter your username">
+    <br>
+    <label for="messageInput">Message:</label>
+    <input type="text" id="messageInput" placeholder="Enter your message">
+    <br>
+    <button onclick="sendMessage()">Send</button>
+    
+    <script>
+        // Call the getChannels function to populate the sidebar
+        getChannels();
+    </script>
+</body>
+</html>
