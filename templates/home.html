@@ -83,7 +83,7 @@
             padding: 20px;
             position: fixed;
             bottom: 0;
-            height: 8vh; /* Add this line to set the height of the bottom bar */
+            height: 5vh; /* Modify this line to set the height of the bottom bar */
         }
 
         .input-container {
@@ -100,6 +100,7 @@
         .input-container input {
             margin-top: 5px;
             width: 100%; /* Add this line to set the width of the input field */
+            height: 40px; /* Modify this line to set the height of the input field */
         }
 
         .send-button {
@@ -221,7 +222,14 @@
             // Listen for the response
             xhr.onload = function() {
                 if (xhr.status === 200) {
-                    refreshMessages();
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.acknowledgment !== 'Message received') {
+                        alert("Message delivery failed. Please try again later.\n\nServer response: " + response.acknowledgment);
+                    } else {
+                        refreshMessages();
+                        // Clear the message input field
+                        document.getElementById("messageInput").value = "";
+                    }
                 } else {
                     // Display an error message to the user
                     alert("Failed to deliver message. Please try again later.");
@@ -318,10 +326,8 @@
     </div>
     <div class="bottom-bar">
         <div class="input-container message-input"> <!-- Add the message-input class to the input container -->
-            <label for="messageInput">Message:</label>
-            <input type="text" id="messageInput" placeholder="Enter your message">
+            <input type="text" id="messageInput" placeholder="Enter your message" onkeydown="if(event.keyCode === 13) sendMessage()">
         </div>
-        <button onclick="sendMessage()" class="send-button">Send</button>
     </div>
     <div class="messages" id="messagesContainer"></div>
 </body>

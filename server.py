@@ -91,6 +91,12 @@ def sendMessage():
     username = session['username']
     channelId = request.json['channelId']
     
+    if not message.strip():  # Check if message is empty or contains only whitespace
+        return jsonify({'acknowledgment': 'Message cannot be empty'})
+    
+    if len(message) > 1000:  # Check if message exceeds 1000 characters
+        return jsonify({'acknowledgment': 'Message cannot exceed 1000 characters'})
+    
     if channelId not in channels:
         return jsonify({'acknowledgment': 'Channel creation denied'})
     
