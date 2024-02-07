@@ -1,16 +1,20 @@
 import os
 import json
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, session, redirect, url_for, render_template
 import datetime
 import atexit
+from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
 app = Flask(__name__)
 
 channels = {'default': [], 'rizz_practice': []}
 messages = []
+users = {}
+app.secret_key = os.environ.get('AUTH_KEY')
 
-def save_messages():
+def save_data():
     """
-    Saves the messages to a JSON file.
+    Saves the messages and users to JSON files.
 
     Parameters:
         None
@@ -20,10 +24,57 @@ def save_messages():
     """
     with open('messages.json', 'w') as file:
         json.dump(messages, file)
+    
+    with open('users.json', 'w') as file:
+        json.dump(users, file)
 
 @app.route('/')
-def home():
-    return render_template('home.html')
+def index():
+    if 'username' in session:
+        # Now use render_template for home.thml
+        return render_template('home.html', token=session['token'])
+        #return 'Logged in as %s' % session['username']
+    # Redirct the user to the signup page
+    return redirect(url_for('signup'))
+    #return 'You are not logged in'
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in users and check_password_hash(users[username], password):
+            session['username'] = username
+            session['token'] = secrets.token_hex(16)  # Generate a unique session token
+            return redirect(url_for('index'))
+        else:
+            return 'Invalid username or password'
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    # remove the username and token from the session if they're there
+    session.pop('username', None)
+    session.pop('token', None)
+    return redirect(url_for('index'))
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username in users:
+            return 'Username already exists'
+        
+        users[username] = generate_password_hash(password)
+        session['username'] = username  # Generate session
+        session['token'] = secrets.token_hex(16)  # Generate a unique session token
+        print(f"Created user {username}")
+        print(users)
+        return redirect(url_for('index'))
+    
+    return render_template('signup.html'), 401
 
 @app.route('/sendMessage', methods=['POST'])
 def sendMessage():
@@ -37,7 +88,7 @@ def sendMessage():
         A JSON response indicating whether the message has been received or the channel creation request has been denied.
     """
     message = request.json['message']
-    username = request.json['username']
+    username = session['username']
     channelId = request.json['channelId']
     
     if channelId not in channels:
@@ -81,6 +132,26 @@ def getMessages(channelId):
     channel_messages = channels[channelId]
     return jsonify({'messages': channel_messages})
 
+@app.before_request
+def require_auth():
+    # List of routes that don't require authentication
+    whitelist = ['/', '/logout', '/login', '/signup']
+
+    # If the requested route is in the whitelist, return early
+    if request.path in whitelist:
+        return
+
+    # Get the token from the request headers
+    token = request.headers.get('Authorization')
+
+    # Check if the token matches the expected token
+    if 'username' in session and session['token'] == token:
+        return
+
+    return render_template('unauthorized.html')
+
+    
+
 if __name__ == '__main__':
     # Load messages from file
     if os.path.exists('messages.json'):
@@ -91,7 +162,12 @@ if __name__ == '__main__':
                 channels[channelId].append(message)
     else:
         messages = []
-    print(messages)
+    if os.path.exists('users.json'):
+        with open('users.json', 'r') as file:
+            users = json.load(file)
+    else:
+        users = {}
+    print(users)
     
-    atexit.register(save_messages)
+    atexit.register(save_data)
     app.run()

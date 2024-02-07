@@ -124,12 +124,21 @@
     </style>
     <script>
         var channelId = "default"; // Define channelId at a global scope with the default value "default"
+
+        function getChannels() {
+            var authToken = getAuthToken();
+
+            // Rest of your code...
+        }
         
         function getChannels() {
             // Create a new XMLHttpRequest object
             var xhr = new XMLHttpRequest();
             // Set the request method and URL
             xhr.open("GET", "/getChannels", true);
+            
+            // Set the authorization header
+            xhr.setRequestHeader("Authorization", authToken);
             
             // Send the request
             xhr.send();
@@ -186,7 +195,7 @@
         function sendMessage() {
             // Get the message and username from the input fields
             var message = document.getElementById("messageInput").value;
-            var username = document.getElementById("usernameInput").value;
+            //var username = document.getElementById("usernameInput").value;
 
             // Get the messages container element
             var messagesContainer = document.getElementById("messagesContainer");
@@ -197,11 +206,14 @@
             // Set the request method and URL
             xhr.open("POST", "/sendMessage", true);
 
+            // Set the authorization header
+            xhr.setRequestHeader("Authorization", authToken);
+
             // Set the request header
             xhr.setRequestHeader("Content-Type", "application/json");
 
             // Set the request body
-            var requestBody = JSON.stringify({ message: message, username: username, channelId: channelId });
+            var requestBody = JSON.stringify({ message: message, channelId: channelId });
 
             // Send the request
             xhr.send(requestBody);
@@ -228,6 +240,9 @@
             var xhr = new XMLHttpRequest();
             // Set the request method and URL
             xhr.open("GET", "/messages/"+channelId, true);
+            
+            // Set the authorization header
+            xhr.setRequestHeader("Authorization", authToken);
             
             // Send the request
             xhr.send();
@@ -282,6 +297,9 @@
             };
         }
 
+        // Get auth token
+        var authToken =  "{{ token }}";
+
         // Call the getChannels function to populate the sidebar
         getChannels();
 
@@ -299,10 +317,6 @@
     </div>
     </div>
     <div class="bottom-bar">
-        <div class="input-container username-input"> <!-- Add the username-input class to the input container -->
-            <label for="usernameInput">Username:</label>
-            <input type="text" id="usernameInput" placeholder="Enter your username" value="Unknown User">
-        </div>
         <div class="input-container message-input"> <!-- Add the message-input class to the input container -->
             <label for="messageInput">Message:</label>
             <input type="text" id="messageInput" placeholder="Enter your message">
