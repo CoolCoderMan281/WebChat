@@ -2,10 +2,11 @@ from flask import Flask, request, jsonify
 from flask import render_template
 import json
 from flask import jsonify
+import datetime
 
 app = Flask(__name__)
 
-channels = {'default': []}
+channels = {'default': [], 'rizz_practice': []}
 messages = []
 
 @app.route('/')
@@ -30,8 +31,9 @@ def sendMessage():
     if channelId not in channels:
         return jsonify({'acknowledgment': 'Channel creation denied'})
     
-    channels[channelId].append({'username': username, 'message': message})
-    print(f'#{channelId} > {username}: {message}')
+    timestamp = datetime.datetime.now().strftime("%m/%d/%Y")
+    channels[channelId].append({'username': username, 'message': message, 'timestamp': timestamp})
+    print(f'#{channelId} > {username}: {message} ({timestamp})')
     return jsonify({'acknowledgment': 'Message received'})
 
 @app.route('/getChannels', methods=['GET'])
@@ -48,6 +50,23 @@ def getChannels():
     channel_list = list(channels)
     print(f"Channels: {channel_list}")
     return jsonify({'channels': channel_list})
+
+@app.route('/messages/<channelId>', methods=['GET'])
+def getMessages(channelId):
+    """
+    Returns all the messages in a channel.
+
+    Parameters:
+        channelId (str): The ID of the channel.
+
+    Returns:
+        A JSON response containing the list of messages in the channel.
+    """
+    if channelId not in channels:
+        return jsonify({'error': 'Channel not found'})
+    
+    channel_messages = channels[channelId]
+    return jsonify({'messages': channel_messages})
 
 if __name__ == '__main__':
     app.run()

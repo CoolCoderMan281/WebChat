@@ -13,18 +13,23 @@
     <style>
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
+            background-color: #333;
+            color: #fff;
         }
         
         .sidebar {
-            width: 200px;
-            background-color: #f1f1f1;
+            width: 10%;
+            background-color: #222;
             padding: 20px;
             height: 100%; /* Add this line to set the height of the sidebar */
+            position: fixed;
+            left: 0;
         }
         
         .channel {
@@ -33,11 +38,88 @@
         
         .channel a {
             text-decoration: none;
-            color: #333;
+            color: #fff;
         }
         
         .channel a:hover {
-            color: #000;
+            color: #ccc;
+        }
+
+        .messages {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            overflow-y: auto;
+            height: 70vh;
+            padding: 20px;
+            background-color: #222;
+            margin-top: 20px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+        }
+
+        .message .time {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .message .username {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .message .content {
+            color: #fff;
+        }
+
+        .bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background-color: #222;
+            padding: 20px;
+            position: fixed;
+            bottom: 0;
+            height: 8vh; /* Add this line to set the height of the bottom bar */
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            flex-grow: 1; /* Add this line to make the input container take up remaining space */
+        }
+
+        .input-container label {
+            color: #fff;
+        }
+
+        .input-container input {
+            margin-top: 5px;
+            width: 100%; /* Add this line to set the width of the input field */
+        }
+
+        .send-button {
+            margin-top: 10px;
+            width: 10%; /* Add this line to set the width of the send button */
+        }
+
+        /* Add this CSS rule to confine the username box to the sidebar */
+        .input-container input#usernameInput {
+            width: 100%;
+        }
+
+        /* Add this CSS rule to style the username input */
+        .username-input {
+            width: 10%; /* Add this line to set the width of the username input */
+        }
+
+        /* Add this CSS rule to style the message input */
+        .message-input {
+            width: 95%; /* Add this line to set the width of the message input */
         }
     </style>
     <script>
@@ -56,8 +138,9 @@
             xhr.onload = function() {
                 if (xhr.status === 200) {
                     // Parse the response JSON
-                    var channels = JSON.parse(xhr.responseText);
-                    alert(JSON.parse(xhr.responseText));
+                    var response = JSON.parse(xhr.responseText);
+                    var channels = response.channels;
+
                     // Get the sidebar element
                     var sidebar = document.getElementById("sidebar");
 
@@ -71,13 +154,11 @@
 
                         var channelLink = document.createElement("a");
                         channelLink.href = "#";
-                        channelLink.textContent = channel.name;
+                        channelLink.textContent = channel;
 
                         channelLink.addEventListener("click", function() {
                             // Set the channelId variable to the channel's id
-                            channelId = channel.id;
-                            // Call the sendMessage function
-                            sendMessage();
+                            channelId = channel;
                         });
 
                         channelElement.appendChild(channelLink);
@@ -85,15 +166,11 @@
                     });
 
                     // Display all the channels in an alert
-                    var channelNames = channels.map(function(channel) {
-                        return channel.name;
-                    });
-                    alert("Channels: " + channelNames.join(", "));
+                    //alert("Channels: " + channels.join(", "));
                 } else {
                     // Display an error message to the user
                     alert("Failed to get channels. Please try again later.");
                 }
-            };
             };
             
             // Listen for any network errors
@@ -107,30 +184,84 @@
             // Get the message and username from the input fields
             var message = document.getElementById("messageInput").value;
             var username = document.getElementById("usernameInput").value;
-            
+
+            // Get the messages container element
+            var messagesContainer = document.getElementById("messagesContainer");
+
             // Create a new XMLHttpRequest object
             var xhr = new XMLHttpRequest();
-            
+
             // Set the request method and URL
             xhr.open("POST", "/sendMessage", true);
-            
+
             // Set the request header
             xhr.setRequestHeader("Content-Type", "application/json");
-            
+
             // Set the request body
             var requestBody = JSON.stringify({ message: message, username: username, channelId: channelId });
-            
+
             // Send the request
             xhr.send(requestBody);
+
+            // Listen for the response
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                } else {
+                    // Display an error message to the user
+                    alert("Failed to deliver message. Please try again later.");
+                }
+            };
+
+            // Listen for any network errors
+            xhr.onerror = function() {
+                // Display an error message to the user
+                alert("Network error occurred. Please check your internet connection and try again.");
+            };
+        }
+
+        function refreshMessages() {
+            // Create a new XMLHttpRequest object
+            var xhr = new XMLHttpRequest();
+            // Set the request method and URL
+            xhr.open("GET", "/messages/"+channelId, true);
+            
+            // Send the request
+            xhr.send();
             
             // Listen for the response
             xhr.onload = function() {
                 if (xhr.status === 200) {
-                    // Display a success message to the user
-                    alert("Message delivered!");
+                    // Parse the response JSON
+                    var response = JSON.parse(xhr.responseText);
+                    var messages = response.messages;
+
+                    // Get the messages container element
+                    var messagesContainer = document.getElementById("messagesContainer");
+
+                    // Clear the messages container
+                    messagesContainer.innerHTML = "";
+
+                    // Add each message to the messages container
+                    messages.forEach(function(message) {
+                        var messageElement = document.createElement("div");
+                        messageElement.classList.add("message");
+
+                        var usernameElement = document.createElement("div");
+                        usernameElement.classList.add("username");
+                        usernameElement.textContent = message.username+" | "+message.timestamp;
+
+                        var contentElement = document.createElement("div");
+                        contentElement.classList.add("content");
+                        contentElement.textContent = message.message;
+
+                        messageElement.appendChild(usernameElement);
+                        messageElement.appendChild(contentElement);
+
+                        messagesContainer.appendChild(messageElement);
+                    });
                 } else {
                     // Display an error message to the user
-                    alert("Failed to deliver message. Please try again later.");
+                    alert("Failed to get messages. Please try again later.");
                 }
             };
             
@@ -140,22 +271,27 @@
                 alert("Network error occurred. Please check your internet connection and try again.");
             };
         }
+
+        // Call the getChannels function to populate the sidebar
+        getChannels();
+
+        // Call the refreshMessages function every 3 seconds
+        setInterval(refreshMessages, 3000);
     </script>
 </head>
 <body>
     <div id="sidebar" class="sidebar"></div>
-    <h1>Hi</h1>
-    <label for="usernameInput">Username:</label>
-    <input type="text" id="usernameInput" placeholder="Enter your username">
-    <br>
-    <label for="messageInput">Message:</label>
-    <input type="text" id="messageInput" placeholder="Enter your message">
-    <br>
-    <button onclick="sendMessage()">Send</button>
-    
-    <script>
-        // Call the getChannels function to populate the sidebar
-        getChannels();
-    </script>
+    <div class="bottom-bar">
+        <div class="input-container username-input"> <!-- Add the username-input class to the input container -->
+            <label for="usernameInput">Username:</label>
+            <input type="text" id="usernameInput" placeholder="Enter your username">
+        </div>
+        <div class="input-container message-input"> <!-- Add the message-input class to the input container -->
+            <label for="messageInput">Message:</label>
+            <input type="text" id="messageInput" placeholder="Enter your message">
+        </div>
+        <button onclick="sendMessage()" class="send-button">Send</button>
+    </div>
+    <div class="messages" id="messagesContainer"></div>
 </body>
 </html>
