@@ -6,6 +6,7 @@ import atexit
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 import uuid
+import concurrent.futures
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('AUTH_KEY')
@@ -151,6 +152,20 @@ def editMessage():
     
     return jsonify({'acknowledgment': 'Message editing failed'})
 
+def sendSystemMessage(channelId, content):
+    system_message = {
+        'id': str(uuid.uuid4()),
+        'channelId': channelId,
+        'username': 'System',
+        'message': content,
+        'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"),
+        'edited': False
+    }
+    #channels.setdefault(channelId, []).append(system_message)
+    messages.append(system_message)
+    return system_message
+
+
 def processCommand(command, username, channelId, permissionLevel):
     """
     Processes the command sent by the user.
@@ -249,6 +264,10 @@ def processCommand(command, username, channelId, permissionLevel):
             #messages.append({'channelId': channelId, 'username': 'System', 'message': f'Permission level of {target_username} set to {new_permission_level}.', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
 
             return jsonify({'acknowledgment': f'Permission level of {target_username} set to {new_permission_level}.'})
+        elif command_name == 'sudo':
+            # Send a system message to the channel
+            sendSystemMessage(channelId, command[5:])
+            return jsonify({'acknowledgment': f'Message sent.'})
         
     return jsonify({'acknowledgment': 'Invalid command'})
 
@@ -352,4 +371,12 @@ if __name__ == '__main__':
         channels = {}
 
     atexit.register(save_data)
-    app.run()
+
+    def run_app():
+        app.run()
+
+    if __name__ == '__main__':
+        # Create separate threads for app.run() and socketio.run()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.submit(run_app)
+            #executor.submit(run_socketio)
