@@ -260,10 +260,14 @@
                     var response = JSON.parse(xhr.responseText);
                     var messages = response.messages;
 
+                    if (messages.length == 0)
+                    {
+                        return;
+                    }
                     console.log(messages);
                     // using a loop print every message
                     for (var i = 0; i < messages.length; i++) {
-                        console.log(messages[i].username + " | " + messages[i].message + " | " + messages[i].timestamp);
+                        console.log(messages[i].username + " | " + messages[i].message + " | " + messages[i].timestamp + " | " + messages[i].id + " | " + messages[i].edited);
                     }
 
                     // Get the messages container element
@@ -284,9 +288,48 @@
                         usernameElement.classList.add("username");
                         usernameElement.textContent = message.username + " | " + message.timestamp;
 
+                        var editButton = document.createElement("button"); // Create the edit button
+                        editButton.classList.add("edit-button");
+                        editButton.textContent = "Edit";
+                        editButton.addEventListener("click", function() {
+                            // Call the /editMessage route here
+                            // You can use XMLHttpRequest or fetch API to make the request
+                            // Example using fetch API:
+                            newCon = prompt("New message: ");
+                            if (newCon == null || newCon == "") {
+                                return;
+                            }
+                            fetch("/editMessage", {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    "Authorization": authToken
+                                },
+                                body: JSON.stringify({ "id": message.id, "newContent": newCon }) // Pass the message ID and new content to the server
+                            })
+                            .then(function(response) {
+                                // Handle the response
+                                if (response.ok) {
+                                    // Edit successful, handle the response accordingly
+                                } else {
+                                    // Edit failed, handle the response accordingly
+                                }
+                            })
+                            .catch(function(error) {
+                                // Handle any network or request error
+                            });
+                        });
+
                         var contentElement = document.createElement("div");
                         contentElement.classList.add("content");
-                        contentElement.textContent = message.message;
+                        if (message.edited == false)
+                        {
+                            contentElement.textContent = message.message;
+                        } else {
+                            contentElement.textContent = message.message + " (edited)";
+                        }
+
+                        usernameElement.appendChild(editButton); // Add the edit button to the username element
 
                         messageElement.appendChild(usernameElement);
                         messageElement.appendChild(contentElement);

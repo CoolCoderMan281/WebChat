@@ -5,6 +5,8 @@ import datetime
 import atexit
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
+import uuid
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('AUTH_KEY')
 
@@ -124,10 +126,30 @@ def sendMessage():
         return processCommand(message, username, channelId, permissionLevel)
     
     timestamp = datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")
-    channels[channelId].append({'username': username, 'message': message, 'timestamp': timestamp})
-    messages.append({'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp})
+    new_uuid = str(uuid.uuid4())
+    #print(new_uuid)
+    #channels[channelId].append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
+    messages.append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
     print(f'#{channelId} > {username}: {message} ({timestamp})')
     return jsonify({'acknowledgment': 'Message received'})
+
+@app.route('/editMessage', methods=['POST'])
+def editMessage():
+    print(request.json)
+    message_id = request.json['id']
+    new_content = request.json.get('newContent')
+    
+    # Find the message with the given id
+    for message in messages:
+        if message.get('id') == message_id:
+            # Check that the username matches the current session's username
+            if message.get('username') == session.get('username'):
+                # Update the message content
+                message['message'] = new_content
+                message['edited'] = True
+                return jsonify({'acknowledgment': 'Message edited successfully'})
+    
+    return jsonify({'acknowledgment': 'Message editing failed'})
 
 def processCommand(command, username, channelId, permissionLevel):
     """
@@ -256,11 +278,19 @@ def getMessages(channelId):
     Returns:
         A JSON response containing the list of messages in the channel.
     """
-    if channelId not in channels:
-        return jsonify({'error': 'Channel not found'})
-    
-    channel_messages = channels[channelId]
-    return jsonify({'messages': channel_messages})
+    formatted_messages = []
+    for message in messages:
+        if message['channelId'] == channelId:
+            formatted_message = {
+                'id': message['id'],
+                'message': message['message'],
+                'username': message['username'],
+                'timestamp': message['timestamp'],
+                'edited': message['edited']
+            }
+            formatted_messages.append(formatted_message)
+
+    return jsonify({'messages': formatted_messages})
 
 @app.before_request
 def require_auth():
