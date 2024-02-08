@@ -12,6 +12,10 @@ messages = []
 users = {}
 app.secret_key = os.environ.get('AUTH_KEY')
 
+if app.secret_key is None:
+    print("No secret key found. Please set the AUTH_KEY environment variable.")
+    os._exit(1)
+
 def save_data():
     """
     Saves the messages and users to JSON files.

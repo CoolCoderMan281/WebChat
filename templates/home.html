@@ -50,10 +50,11 @@
             flex-direction: column;
             align-items: flex-start;
             overflow-y: auto;
-            height: 70vh;
+            flex-grow: 1; /* Add this line to make the messages container take up all available space */
             padding: 20px;
             background-color: #222;
             margin-top: 20px;
+            margin-bottom: 60px; /* Adjust this value to leave enough space for the bottom bar */
         }
 
         .message {
@@ -125,12 +126,6 @@
     </style>
     <script>
         var channelId = "default"; // Define channelId at a global scope with the default value "default"
-
-        function getChannels() {
-            var authToken = getAuthToken();
-
-            // Rest of your code...
-        }
         
         function getChannels() {
             // Create a new XMLHttpRequest object
@@ -247,16 +242,16 @@
             // Create a new XMLHttpRequest object
             var xhr = new XMLHttpRequest();
             // Set the request method and URL
-            xhr.open("GET", "/messages/"+channelId, true);
-            
+            xhr.open("GET", "/messages/" + channelId, true);
+
             // Set the authorization header
             xhr.setRequestHeader("Authorization", authToken);
-            
+
             // Send the request
             xhr.send();
-            
+
             // Listen for the response
-            xhr.onload = function() {
+            xhr.onload = function () {
                 if (xhr.status === 200) {
                     // Parse the response JSON
                     var response = JSON.parse(xhr.responseText);
@@ -271,17 +266,20 @@
                     // Get the messages container element
                     var messagesContainer = document.getElementById("messagesContainer");
 
+                    // Check if the scroll is already at the bottom
+                    var isAtBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
+
                     // Clear the messages container
                     messagesContainer.innerHTML = "";
 
                     // Add each message to the messages container
-                    messages.forEach(function(message) {
+                    messages.forEach(function (message) {
                         var messageElement = document.createElement("div");
                         messageElement.classList.add("message");
 
                         var usernameElement = document.createElement("div");
                         usernameElement.classList.add("username");
-                        usernameElement.textContent = message.username+" | "+message.timestamp;
+                        usernameElement.textContent = message.username + " | " + message.timestamp;
 
                         var contentElement = document.createElement("div");
                         contentElement.classList.add("content");
@@ -292,14 +290,19 @@
 
                         messagesContainer.appendChild(messageElement);
                     });
+
+                    // Scroll down to the new bottom if already at the bottom
+                    if (isAtBottom) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
                 } else {
                     // Display an error message to the user
                     console.log("Failed to get messages. Please try again later.");
                 }
             };
-            
+
             // Listen for any network errors
-            xhr.onerror = function() {
+            xhr.onerror = function () {
                 // Display an error message to the user
                 console.log("Network error occurred. Please check your internet connection and try again.");
             };
