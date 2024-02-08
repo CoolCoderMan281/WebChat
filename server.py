@@ -179,15 +179,16 @@ def processCommand(command, username, channelId, permissionLevel):
     Returns:
         A JSON response indicating the result of the command.
     """
-    if permissionLevel < 1:
-        print(f"User: {username} ran command: {command}")
-        print("User: " + username + " does not have permission to execute commands, permissionLevel: " + str(permissionLevel))
-        return jsonify({'acknowledgment': 'Insufficient permission level'})
 
+    print(f"User: {username} ran command: {command}")
     
     command = command[1:]  # Remove the leading '/'
     command_parts = command.split(' ')
     command_name = command_parts[0].lower()
+
+    if command_name == 'logout':
+        return redirect(url_for('logout'))
+        
 
     if permissionLevel >=1: 
         if command_name == 'createchannel':
@@ -234,7 +235,7 @@ def processCommand(command, username, channelId, permissionLevel):
             #for user, data in users.items():
                 #messages.append({'channelId': channelId, 'username': 'System', 'message': f'{user} : {data["permissionLevel"]}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
             return jsonify({'acknowledgment': 'User information printed'})
-    
+
     if permissionLevel >= 4:
         if command_name == 'deleteuser':
             if len(command_parts) != 2:
@@ -311,6 +312,31 @@ def getMessages(channelId):
 
     return jsonify({'messages': formatted_messages})
 
+@app.route('/deleteMessage', methods=['POST'])
+def deleteMessage():
+    """
+    Deletes a message from the messages list.
+
+    Parameters:
+        None
+
+    Returns:
+        A JSON response indicating whether the message has been deleted.
+    """
+    message_id = request.json['id']
+    username = session['username']
+    permissionLevel = session['permissionLevel']
+    
+    for message in messages:
+        if message['id'] == message_id:
+            if message['username'] == username or permissionLevel >= 1:
+                messages.remove(message)
+                return jsonify({'acknowledgment': 'Message deleted'})
+            else:
+                return jsonify({'acknowledgment': 'Insufficient permission level'})
+    
+    return jsonify({'acknowledgment': 'Message not found'})
+
 @app.route('/whoAmi', methods=['GET'])
 def whoAmi():
     """
@@ -323,7 +349,7 @@ def whoAmi():
         A JSON response containing the username of the session.
     """
     if 'username' in session:
-        return jsonify({'username': session['username']})
+        return jsonify({'username': session['username'], 'permissionLevel': session['permissionLevel']})
     else:
         return jsonify({'username': None})
 

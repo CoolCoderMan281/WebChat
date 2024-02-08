@@ -327,7 +327,35 @@
                             usernameElement.appendChild(editButton); // Add the edit button to the username element
                         }
 
-                        
+                        // Check if the user owns the message
+                        if ((permissionLevel > 3) || (message.username == username)) {
+                            var deleteButton = document.createElement("button"); // Create the edit button
+                            deleteButton.classList.add("edit-button")
+
+                            deleteButton.textContent = "Delete";
+                            deleteButton.addEventListener("click", function() {
+                                fetch("/deleteMessage", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "Authorization": authToken
+                                    },
+                                    body: JSON.stringify({ "id": message.id }) // Pass the message ID and new content to the server
+                                })
+                                .then(function(response) {
+                                    // Handle the response
+                                    if (response.ok) {
+                                        // Edit successful, handle the response accordingly
+                                    } else {
+                                        // Edit failed, handle the response accordingly
+                                    }
+                                })
+                                .catch(function(error) {
+                                    // Handle any network or request error
+                                });
+                            });
+                            usernameElement.appendChild(deleteButton); // Add the edit button to the username element
+                        }
 
                         var contentElement = document.createElement("div");
                         contentElement.classList.add("content");
@@ -371,17 +399,19 @@
         refreshMessages();
 
         username = "";
+        permissionLevel = 0;
         fetch("/whoAmi")
             .then(response => response.json())
             .then(data => {
                 var username_tmp = data.username;
                 username = data.username;
+                permissionLevel = data.permissionLevel;
                 console.log(data.username)
             })
             .catch(error => console.log("Failed to get username. Please try again later."));
 
         // Call the refreshMessages function every 3 seconds
-        setInterval(refreshMessages, 3000);
+        setInterval(refreshMessages, 1000);
         setInterval(getChannels, 5000);
     </script>
 </head>
