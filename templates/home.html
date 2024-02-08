@@ -135,55 +135,55 @@
             var xhr = new XMLHttpRequest();
             // Set the request method and URL
             xhr.open("GET", "/getChannels", true);
-            
+
             // Set the authorization header
             xhr.setRequestHeader("Authorization", authToken);
-            
+
             // Send the request
             xhr.send();
-            
+
             // Listen for the response
             xhr.onload = function() {
-                if (xhr.status === 200) {
-                    // Parse the response JSON
-                    var response = JSON.parse(xhr.responseText);
-                    var channels = response.channels;
+                    if (xhr.status === 200) {
+                        // Parse the response JSON
+                        var response = JSON.parse(xhr.responseText);
+                        var channels = response.channels;
 
-                    // Get the sidebar element
-                    var sidebar = document.getElementById("sidebar");
+                        // Get the sidebar element
+                        var sidebar = document.getElementById("sidebar");
 
-                    // Clear the sidebar only if it is empty
-                    if (sidebar.innerHTML === "") {
+                        // Clear the sidebar
+                        sidebar.innerHTML = "";
+
                         // Add the "Channels: " header
                         var channelsHeader = document.createElement("div");
                         channelsHeader.textContent = "Channels: ";
                         sidebar.appendChild(channelsHeader);
-                    }
 
-                    // Add each channel to the sidebar
-                    channels.forEach(function(channel) {
-                        var channelElement = document.createElement("div");
-                        channelElement.classList.add("channel");
+                        // Add each channel to the sidebar
+                        channels.forEach(function(channel) {
+                            var channelElement = document.createElement("div");
+                            channelElement.classList.add("channel");
 
-                        var channelLink = document.createElement("a");
-                        channelLink.href = "#";
-                        channelLink.textContent = channel;
+                            var channelLink = document.createElement("a");
+                            channelLink.href = "#";
+                            channelLink.textContent = "#" + channel; // Add "#" to the start of the channel name
 
-                        channelLink.addEventListener("click", function() {
-                            // Set the channelId variable to the channel's id
-                            channelId = channel;
-                            refreshMessages();
+                            channelLink.addEventListener("click", function() {
+                                // Set the channelId variable to the channel's id
+                                channelId = channel;
+                                refreshMessages();
+                            });
+
+                            channelElement.appendChild(channelLink);
+                            sidebar.appendChild(channelElement);
                         });
+                    } else {
+                        // Display an error message to the user
+                        alert("Failed to get channels. Please try again later.");
+                    }
+                };
 
-                        channelElement.appendChild(channelLink);
-                        sidebar.appendChild(channelElement);
-                    });
-                } else {
-                    // Display an error message to the user
-                    alert("Failed to get channels. Please try again later.");
-                }
-            };
-            
             // Listen for any network errors
             xhr.onerror = function() {
                 // Display an error message to the user
@@ -322,6 +322,7 @@
 
         // Call the refreshMessages function every 3 seconds
         setInterval(refreshMessages, 3000);
+        setInterval(getChannels, 5000);
     </script>
 </head>
 <body>

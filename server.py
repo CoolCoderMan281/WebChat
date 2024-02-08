@@ -6,19 +6,19 @@ import atexit
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 app = Flask(__name__)
-
-channels = {'default': [], 'rizz_practice': []}
-messages = []
-users = {}
 app.secret_key = os.environ.get('AUTH_KEY')
 
 if app.secret_key is None:
     print("No secret key found. Please set the AUTH_KEY environment variable.")
     os._exit(1)
 
+messages = []
+users = {}
+channels = {}
+
 def save_data():
     """
-    Saves the messages and users to JSON files.
+    Saves the messages, users, and channels to JSON files.
 
     Parameters:
         None
@@ -32,8 +32,12 @@ def save_data():
     with open('users.json', 'w') as file:
         json.dump(users, file)
 
+    with open('channels.json', 'w') as file:
+        json.dump(channels, file)
+
 @app.route('/')
 def index():
+    print("A person has arrived at the landing page.")
     if 'username' in session:
         # Now use render_template for home.thml
         return render_template('home.html', token=session['token'])
@@ -44,16 +48,44 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    print("A person has arrvied at the login page.")
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in users and check_password_hash(users[username], password):
+        
+        if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_hex(16)  # Generate a unique session token
+            session['permissionLevel'] = users[username].get('permissionLevel', 0)  # Get the permissionLevel of the user
+            
             return redirect(url_for('index'))
         else:
             return 'Invalid username or password'
+    
     return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    print("A person has arrvied at the signup page.")
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        if username in users:
+            return 'Username already exists'
+        
+        users[username] = {
+            'password': generate_password_hash(password),
+            'permissionLevel': 0
+        }
+        session['username'] = username  # Generate session
+        session['token'] = secrets.token_hex(16)  # Generate a unique session token
+        session['permissionLevel'] = 0  # Set default permission level
+        print(f"Created user {username}")
+        print(users)
+        save_data()  # Save the updated user data
+        return redirect(url_for('index'))
+    return render_template('signup.html'), 401
 
 @app.route('/logout')
 def logout():
@@ -62,26 +94,9 @@ def logout():
     session.pop('token', None)
     return redirect(url_for('index'))
 
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        if username in users:
-            return 'Username already exists'
-        
-        users[username] = generate_password_hash(password)
-        session['username'] = username  # Generate session
-        session['token'] = secrets.token_hex(16)  # Generate a unique session token
-        print(f"Created user {username}")
-        print(users)
-        return redirect(url_for('index'))
-    
-    return render_template('signup.html'), 401
-
 @app.route('/sendMessage', methods=['POST'])
 def sendMessage():
+    global users
     """
     Receives a message from the client and stores it in the messages list.
 
@@ -94,6 +109,7 @@ def sendMessage():
     message = request.json['message']
     username = session['username']
     channelId = request.json['channelId']
+    permissionLevel = session['permissionLevel']
     
     if not message.strip():  # Check if message is empty or contains only whitespace
         return jsonify({'acknowledgment': 'Message cannot be empty'})
@@ -104,11 +120,116 @@ def sendMessage():
     if channelId not in channels:
         return jsonify({'acknowledgment': 'Channel creation denied'})
     
+    if message.startswith('/'):  # Check if message is a command
+        return processCommand(message, username, channelId, permissionLevel)
+    
     timestamp = datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")
     channels[channelId].append({'username': username, 'message': message, 'timestamp': timestamp})
     messages.append({'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp})
     print(f'#{channelId} > {username}: {message} ({timestamp})')
     return jsonify({'acknowledgment': 'Message received'})
+
+def processCommand(command, username, channelId, permissionLevel):
+    """
+    Processes the command sent by the user.
+
+    Parameters:
+        command (str): The command sent by the user.
+        username (str): The username of the user.
+        channelId (str): The ID of the channel.
+        permissionLevel (int): The permission level of the user.
+
+    Returns:
+        A JSON response indicating the result of the command.
+    """
+    if permissionLevel < 1:
+        print(f"User: {username} ran command: {command}")
+        print("User: " + username + " does not have permission to execute commands, permissionLevel: " + str(permissionLevel))
+        return jsonify({'acknowledgment': 'Insufficient permission level'})
+
+    
+    command = command[1:]  # Remove the leading '/'
+    command_parts = command.split(' ')
+    command_name = command_parts[0].lower()
+
+    if permissionLevel >=1: 
+        if command_name == 'createchannel':
+            if len(command_parts) != 2:
+                return jsonify({'acknowledgment': 'Invalid command format'})
+            
+            new_channel_id = command_parts[1]
+            if new_channel_id in channels:
+                return jsonify({'acknowledgment': 'Channel already exists'})
+            
+            channels[new_channel_id] = []
+            messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{new_channel_id}" created', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            return jsonify({'acknowledgment': 'Channel created'})
+        elif command_name == 'clearchannel':
+            if len(command_parts) != 2:
+                return jsonify({'acknowledgment': 'Invalid command format'})
+            
+            channel_id = command_parts[1]
+            if channel_id not in channels:
+                return jsonify({'acknowledgment': 'Channel does not exist'})
+            
+            channels[channel_id] = []
+            messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{channel_id}" cleared', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            return jsonify({'acknowledgment': 'Channel cleared'})
+        elif command_name == 'deletechannel':
+            if len(command_parts) != 2:
+                return jsonify({'acknowledgment': 'Invalid command format'})
+            
+            channel_id = command_parts[1]
+            if channel_id not in channels:
+                return jsonify({'acknowledgment': 'Channel does not exist'})
+            
+            del channels[channel_id]
+            messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{channel_id}" deleted', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            return jsonify({'acknowledgment': 'Channel deleted'})
+        
+        elif command_name == 'getusers':
+            if len(command_parts) != 1:
+                return jsonify({'acknowledgment': 'Invalid command format'})
+            
+            if permissionLevel < 1:
+                return jsonify({'acknowledgment': 'Insufficient permission level'})
+            
+            for user, data in users.items():
+                messages.append({'channelId': channelId, 'username': 'System', 'message': f'{user} : {data["permissionLevel"]}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            return jsonify({'acknowledgment': 'User information printed'})
+    
+    if permissionLevel >= 4:
+        if command_name == 'deleteuser':
+            if len(command_parts) != 2:
+                return jsonify({'acknowledgment': 'Invalid command format'})
+            
+            user_to_delete = command_parts[1]
+            if user_to_delete not in users:
+                return jsonify({'acknowledgment': 'User does not exist'})
+            
+            del users[user_to_delete]
+            messages.append({'channelId': channelId, 'username': 'System', 'message': f'User "{user_to_delete}" deleted', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            return jsonify({'acknowledgment': 'User deleted'})
+        elif command_name == 'permuser':
+            # Split the command to get the target username and the new permission level
+            _, target_username, new_permission_level = command.split()
+
+            # Check if the new permission level is valid (up to 3)
+            if int(new_permission_level) > 3:
+                return jsonify({'acknowledgment': 'Invalid permission level. Permission level can only go up to 3.'})
+
+            # Check if the target user exists
+            if target_username not in users:
+                return jsonify({'acknowledgment': 'User not found.'})
+
+            # Set the new permission level for the target user
+            users[target_username]['permissionLevel'] = int(new_permission_level)
+            messages.append({'channelId': channelId, 'username': 'System', 'message': f'Permission level of {target_username} set to {new_permission_level}.', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+
+            return jsonify({'acknowledgment': f'Permission level of {target_username} set to {new_permission_level}.'})
+        
+    return jsonify({'acknowledgment': 'Invalid command'})
+
 
 @app.route('/getChannels', methods=['GET'])
 def getChannels():
@@ -122,7 +243,6 @@ def getChannels():
         A JSON response containing the list of channel IDs.
     """
     channel_list = list(channels)
-    print(f"Channels: {channel_list}")
     return jsonify({'channels': channel_list})
 
 @app.route('/messages/<channelId>', methods=['GET'])
@@ -169,15 +289,20 @@ if __name__ == '__main__':
             messages = json.load(file)
             for message in messages:
                 channelId = message['channelId']
-                channels[channelId].append(message)
+                channels.setdefault(channelId, []).append(message)
     else:
         messages = []
     if os.path.exists('users.json'):
         with open('users.json', 'r') as file:
-            users = json.load(file)
+            users:dict = json.load(file)
     else:
-        users = {}
-    print(users)
-    
+        users:dict = {}
+    # Load channels from file
+    if os.path.exists('channels.json'):
+        with open('channels.json', 'r') as file:
+            channels = json.load(file)
+    else:
+        channels = {}
+
     atexit.register(save_data)
     app.run()
