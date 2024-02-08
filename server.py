@@ -104,7 +104,7 @@ def sendMessage():
     if channelId not in channels:
         return jsonify({'acknowledgment': 'Channel creation denied'})
     
-    timestamp = datetime.datetime.now().strftime("%m/%d/%Y")
+    timestamp = datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")
     channels[channelId].append({'username': username, 'message': message, 'timestamp': timestamp})
     messages.append({'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp})
     print(f'#{channelId} > {username}: {message} ({timestamp})')
