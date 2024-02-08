@@ -129,7 +129,7 @@
     </style>
     <script>
         var channelId = "default"; // Define channelId at a global scope with the default value "default"
-        
+
         function getChannels() {
             // Create a new XMLHttpRequest object
             var xhr = new XMLHttpRequest();
@@ -288,7 +288,13 @@
                         usernameElement.classList.add("username");
                         usernameElement.textContent = message.username + " | " + message.timestamp;
 
-                        ;
+                        var replyButton = document.createElement("button"); // Create the edit button
+                        replyButton.classList.add("reply-button")
+                        replyButton.textContent = "Reply";
+                        replyButton.addEventListener("click", function() {
+                            document.getElementById("messageInput").value = "\""+message.message+"\" ";
+                        });
+                        usernameElement.appendChild(replyButton); // Add the edit button to the username element
 
                         // Check if the user owns the message
                         if (message.username == username) {
@@ -330,7 +336,7 @@
                         // Check if the user owns the message
                         if ((permissionLevel > 3) || (message.username == username)) {
                             var deleteButton = document.createElement("button"); // Create the edit button
-                            deleteButton.classList.add("edit-button")
+                            deleteButton.classList.add("delete-button")
 
                             deleteButton.textContent = "Delete";
                             deleteButton.addEventListener("click", function() {

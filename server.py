@@ -130,6 +130,7 @@ def sendMessage():
     new_uuid = str(uuid.uuid4())
     #print(new_uuid)
     #channels[channelId].append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
+    
     messages.append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
     print(f'#{channelId} > {username}: {message} ({timestamp})')
     return jsonify({'acknowledgment': 'Message received'})
@@ -159,9 +160,8 @@ def sendSystemMessage(channelId, content):
         'username': 'System',
         'message': content,
         'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"),
-        'edited': False
+        'edited': False,
     }
-    #channels.setdefault(channelId, []).append(system_message)
     messages.append(system_message)
     return system_message
 
@@ -200,7 +200,7 @@ def processCommand(command, username, channelId, permissionLevel):
                 return jsonify({'acknowledgment': 'Channel already exists'})
             
             channels[new_channel_id] = []
-            #messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{new_channel_id}" created', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            sendSystemMessage(channelId, f'Channel "{new_channel_id}" created')
             return jsonify({'acknowledgment': 'Channel created'})
         elif command_name == 'clearchannel':
             if len(command_parts) != 2:
@@ -211,7 +211,7 @@ def processCommand(command, username, channelId, permissionLevel):
                 return jsonify({'acknowledgment': 'Channel does not exist'})
             
             channels[channel_id] = []
-            #messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{channel_id}" cleared', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            sendSystemMessage(channelId, f'Channel "{channel_id}" cleared')
             return jsonify({'acknowledgment': 'Channel cleared'})
         elif command_name == 'deletechannel':
             if len(command_parts) != 2:
@@ -222,7 +222,7 @@ def processCommand(command, username, channelId, permissionLevel):
                 return jsonify({'acknowledgment': 'Channel does not exist'})
             
             del channels[channel_id]
-            #messages.append({'channelId': channelId, 'username': 'System', 'message': f'Channel "{channel_id}" deleted', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            sendSystemMessage(channelId, f'Channel "{channel_id}" deleted')
             return jsonify({'acknowledgment': 'Channel deleted'})
         
         elif command_name == 'getusers':
@@ -232,8 +232,8 @@ def processCommand(command, username, channelId, permissionLevel):
             if permissionLevel < 1:
                 return jsonify({'acknowledgment': 'Insufficient permission level'})
             
-            #for user, data in users.items():
-                #messages.append({'channelId': channelId, 'username': 'System', 'message': f'{user} : {data["permissionLevel"]}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            for user, data in users.items():
+                sendSystemMessage(channelId, f'{user} : {data["permissionLevel"]}')
             return jsonify({'acknowledgment': 'User information printed'})
 
     if permissionLevel >= 4:
@@ -246,7 +246,7 @@ def processCommand(command, username, channelId, permissionLevel):
                 return jsonify({'acknowledgment': 'User does not exist'})
             
             del users[user_to_delete]
-            #messages.append({'channelId': channelId, 'username': 'System', 'message': f'User "{user_to_delete}" deleted', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
+            sendSystemMessage(channelId, f'User "{user_to_delete}" deleted')
             return jsonify({'acknowledgment': 'User deleted'})
         elif command_name == 'permuser':
             # Split the command to get the target username and the new permission level
@@ -262,8 +262,7 @@ def processCommand(command, username, channelId, permissionLevel):
 
             # Set the new permission level for the target user
             users[target_username]['permissionLevel'] = int(new_permission_level)
-            #messages.append({'channelId': channelId, 'username': 'System', 'message': f'Permission level of {target_username} set to {new_permission_level}.', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")})
-
+            sendSystemMessage(channelId, f'Permission level of {target_username} set to {new_permission_level}.')
             return jsonify({'acknowledgment': f'Permission level of {target_username} set to {new_permission_level}.'})
         elif command_name == 'sudo':
             # Send a system message to the channel
@@ -301,15 +300,24 @@ def getMessages(channelId):
     formatted_messages = []
     for message in messages:
         if message['channelId'] == channelId:
-            formatted_message = {
-                'id': message['id'],
-                'message': message['message'],
-                'username': message['username'],
-                'timestamp': message['timestamp'],
-                'edited': message['edited']
-            }
+            try:
+                formatted_message = {
+                    'id': message['id'],
+                    'message': message['message'],
+                    'username': message['username'],
+                    'timestamp': message['timestamp'],
+                    'edited': message['edited'],
+                }
+            except: # Backup placeholder
+                formatted_message = {
+                    'id': message['id'],
+                    'message': message['message'],
+                    'username': message['username'],
+                    'timestamp': message['timestamp'],
+                    'edited': message['edited'],
+                }
+                message = formatted_message
             formatted_messages.append(formatted_message)
-
     return jsonify({'messages': formatted_messages})
 
 @app.route('/deleteMessage', methods=['POST'])
