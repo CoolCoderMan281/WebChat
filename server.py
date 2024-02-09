@@ -352,7 +352,7 @@ def editUser():
         return jsonify({'message': 'Invalid request'})
 
 
-@app.route('/users/<username>', methods=['GET'])
+@app.route('/users/<username>', methods=['GET', 'POST'])
 def users(username):
     """
     Returns all the users in the system.
@@ -363,7 +363,23 @@ def users(username):
     Returns:
         A JSON response containing the list of users in the system.
     """
-    if request.method == 'GET':
+    if request.method == 'POST':
+        updateFriend:bool = request.json.get('updateFriend', None)
+        #print(updateFriend)
+        if (updateFriend != None):
+            if updateFriend:
+                #print("Adding..")
+                users[session['username']]['friends'].append(username);
+                save_data();
+            else:
+                #print("Removing..")
+                if username in users[session['username']]['friends']:
+                    #print("Found in friends")
+                    users[session['username']]['friends'].remove(username)
+                    #print(users[session['username']]['friends'])
+                    save_data();
+            return jsonify({'message': 'Friend updated'})
+    elif request.method == 'GET':
         for user in users:
             if user == username:
                 # Build friends data
@@ -379,15 +395,22 @@ def users(username):
                                         profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=True, 
                                         lastOnline = users[username].get('lastOnline', time.time()),
-                                        friends=friends)
+                                        friends=friends, isFriend=isFriends(session['username'], username))
                 else:
                     return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
                                         profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=False, 
                                         lastOnline = users[username].get('lastOnline', time.time()),
-                                        friends=friends)
+                                        friends=friends, isFriend=isFriends(session['username'], username))
     # Doesn't exist
     return render_template('unknown.html', username=username)
+
+# Method called isFriends, accepts 2 usernames and returns a boolean
+def isFriends(user1, user2):
+    if user1 in users and user2 in users:
+        if user2 in users[user1]['friends']:
+            return True
+    return False
 
 @app.route('/deleteMessage', methods=['POST'])
 def deleteMessage():

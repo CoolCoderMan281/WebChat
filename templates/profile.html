@@ -66,7 +66,6 @@
     <br></br><br></br><br></br>
     <h2>About Me</h2>
     <div class="about-me" id="aboutMe">{{ about }}</div>
-    <button class="save-button" onclick="saveChanges()">Save</button>
     <div class="friends-list">
         <h2>Friends</h2>
         <ul id="friendsList">
@@ -109,6 +108,7 @@
         </ul>
     </div>
     <button class="return-button" onclick="window.location.href = '/'">Return to /</button>
+    <!-- <button class="return-button" onclick="saveChanges()">Save</button> -->
     <script>
         var username = "{{ username}}";
         var permissionLevel = "{{ permissionLevel }}";
@@ -116,7 +116,16 @@
         var profileUrl = "{{ profileUrl }}";
         var lastOnline = "{{ lastOnline }}"
         var owner = "{{ owner }}";
+        var isFriend = "{{ isFriend }}";
 
+        if (isFriend === "False")
+        {
+            isFriend = false;
+        } else {
+            isFriend = true;
+        }
+
+        //alert(isFriend);
         // Convert lastOnline to milliseconds
         var lastOnlineMilliseconds = lastOnline * 1000;
 
@@ -143,8 +152,10 @@
 
             var saveButton = document.createElement("button");
             saveButton.innerHTML = "Save";
-            saveButton.classList.add("save-button");
-            aboutMeElement.parentNode.appendChild(saveButton);
+            saveButton.classList.add("return-button");
+            var returnButton = document.querySelector(".return-button");
+            returnButton.parentNode.insertBefore(saveButton, returnButton.nextSibling);
+            saveButton.style.marginLeft = "100px"; // Add this line to create space between the buttons
             saveButton.style.display = "block"; // Add this line to make the button visible
 
             saveButton.addEventListener("click", function() {
@@ -159,6 +170,39 @@
                 var data = {
                     username: username,
                     about: aboutMeElement.innerText
+                };
+                xhr.send(JSON.stringify(data));
+            });
+        } else {
+            var friendElement = document.createElement("button");
+            friendElement.innerHTML = "Friend Action";
+            friendElement.style.display = "block";
+            friendElement.classList.add("return-button");
+            friendElement.style.marginTop = "20px";
+            var returnButton = document.querySelector(".return-button");
+            returnButton.parentNode.insertBefore(friendElement, returnButton.nextSibling);
+            friendElement.style.marginLeft = "100px"; // Add this line to create space between the buttons
+            friendElement.style.display = "block"; // Add this line to make the button visible
+
+            if (isFriend == true) {
+                friendElement.innerHTML = "Remove Friend";
+            } else {
+                friendElement.innerHTML = "Add Friend";
+            }
+
+            friendElement.addEventListener("click", function() {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/users/"+username, true);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        //alert("Friend added successfully "+!isFriend);
+                        window.location.reload();
+
+                    }
+                };
+                var data = {
+                    "updateFriend": !isFriend,
                 };
                 xhr.send(JSON.stringify(data));
             });
