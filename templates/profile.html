@@ -66,6 +66,47 @@
     <br></br><br></br><br></br>
     <h2>About Me</h2>
     <div class="about-me" id="aboutMe">{{ about }}</div>
+    <button class="save-button" onclick="saveChanges()">Save</button>
+    <div class="friends-list">
+        <h2>Friends</h2>
+        <ul id="friendsList">
+            <!-- BEGIN: Insert friends list using JS -->
+            <script>
+                var friendsList = document.getElementById("friendsList");
+                var friends = '{{friends|tojson}}';
+
+                // If no friends are found, display a message
+                if (friends === "[]") {
+                    var listItem = document.createElement("li");
+                    listItem.textContent = "No friends found";
+                    friendsList.appendChild(listItem);
+                }
+
+                // Convert the string to a JSON object
+                friends = JSON.parse(friends);
+
+                friends.forEach(function(friend) {
+                    console.log(friend.username);
+                    var listItem = document.createElement("li");
+                    var profilePicture = document.createElement("img");
+                    profilePicture.src = friend.profileUrl;
+                    profilePicture.alt = "Profile Picture";
+                    profilePicture.style.borderRadius = "50%";
+                    profilePicture.style.width = "50px";
+                    profilePicture.style.height = "50px";
+                    listItem.appendChild(profilePicture);
+                    var username = document.createElement("span");
+                    var usernameLink = document.createElement("a");
+                    usernameLink.href = "/users/" + friend.username;
+                    usernameLink.textContent = friend.username;
+                    usernameLink.style.color = "lightblue"; // Add this line to set the text color to light blue
+                    username.appendChild(usernameLink);
+                    listItem.appendChild(username);
+                    friendsList.appendChild(listItem);
+                });
+            </script>
+            <!-- END: Insert friends list using JS -->
+        </ul>
     </div>
     <button class="return-button" onclick="window.location.href = '/'">Return to /</button>
     <script>
@@ -84,7 +125,7 @@
 
         // Calculate the difference in seconds
         var differenceInSeconds = (currentTime - lastOnlineMilliseconds) / 1000;
-        console.log(differenceInSeconds);
+
         if (differenceInSeconds < 15) {
             var smallCircle = document.querySelector(".small-circle");
             smallCircle.style.backgroundColor = "green";

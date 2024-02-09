@@ -83,8 +83,8 @@ def signup():
             'permissionLevel': 0,
             'about': 'I am a new user',
             'profileUrl': 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg',
-            'lastOnline': time.time()
-
+            'lastOnline': time.time(),
+            'friends': {}
         }
         # Ge
         session['username'] = username  # Generate session
@@ -366,16 +366,26 @@ def users(username):
     if request.method == 'GET':
         for user in users:
             if user == username:
+                # Build friends data
+                real_friends = users[user].get('friends', {})
+                # Build the friends list which needs to have the username and profileUrl
+                friends = []
+                for friend in real_friends:
+                    friends.append({'username': friend, 'profileUrl': users[friend].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg')})
+
+                # Convert friends to json
                 if username == session['username']:
                     return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
                                         profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=True, 
-                                        lastOnline = users[username].get('lastOnline', time.time()))
+                                        lastOnline = users[username].get('lastOnline', time.time()),
+                                        friends=friends)
                 else:
                     return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
                                         profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=False, 
-                                        lastOnline = users[username].get('lastOnline', time.time()))
+                                        lastOnline = users[username].get('lastOnline', time.time()),
+                                        friends=friends)
     # Doesn't exist
     return render_template('unknown.html', username=username)
 
@@ -442,6 +452,7 @@ def require_auth():
 
     # Check if the token matches the expected token
     if 'username' in session and session['token'] == token:
+        users.get(session['username'], {})['lastOnline'] = time.time()
         return
 
     return render_template('unauthorized.html')
