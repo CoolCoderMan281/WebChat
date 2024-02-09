@@ -5,7 +5,7 @@ import datetime
 import atexit
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
-import uuid
+import uuid, time
 import concurrent.futures
 
 app = Flask(__name__)
@@ -76,11 +76,17 @@ def signup():
         
         if username in users:
             return 'Username already exists'
+        # Get unix time
         
         users[username] = {
             'password': generate_password_hash(password),
-            'permissionLevel': 0
+            'permissionLevel': 0,
+            'about': 'I am a new user',
+            'profileUrl': 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg',
+            'lastOnline': time.time()
+
         }
+        # Ge
         session['username'] = username  # Generate session
         session['token'] = secrets.token_hex(16)  # Generate a unique session token
         session['permissionLevel'] = 0  # Set default permission level
@@ -297,6 +303,9 @@ def getMessages(channelId):
     Returns:
         A JSON response containing the list of messages in the channel.
     """
+
+    users.get(session['username'], {})['lastOnline'] = time.time()
+
     formatted_messages = []
     for message in messages:
         if message['channelId'] == channelId:
@@ -320,6 +329,56 @@ def getMessages(channelId):
             formatted_messages.append(formatted_message)
     return jsonify({'messages': formatted_messages})
 
+@app.route('/editUser', methods=['POST'])
+def editUser():
+    """
+    Edits the user's profile information.
+
+    Parameters:
+        None
+
+    Returns:
+        A JSON response indicating the success or failure of the edit operation.
+    """
+    about = request.json.get('about')
+    username = request.json.get('username')
+    if about is not None:
+        if session['username'] == username:
+            users[session['username']]['about'] = about
+            return jsonify({'message': 'User profile edited successfully'})
+        else:
+            return jsonify({'message': 'You do not have permission to edit this profile'})
+    else:
+        return jsonify({'message': 'Invalid request'})
+
+
+@app.route('/users/<username>', methods=['GET'])
+def users(username):
+    """
+    Returns all the users in the system.
+
+    Parameters:
+        None
+
+    Returns:
+        A JSON response containing the list of users in the system.
+    """
+    if request.method == 'GET':
+        for user in users:
+            if user == username:
+                if username == session['username']:
+                    return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
+                                        profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
+                                        about=users[username].get('about', 'Im a unmigrated profile :('), owner=True, 
+                                        lastOnline = users[username].get('lastOnline', time.time()))
+                else:
+                    return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
+                                        profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
+                                        about=users[username].get('about', 'Im a unmigrated profile :('), owner=False, 
+                                        lastOnline = users[username].get('lastOnline', time.time()))
+    # Doesn't exist
+    return render_template('unknown.html', username=username)
+
 @app.route('/deleteMessage', methods=['POST'])
 def deleteMessage():
     """
@@ -336,9 +395,12 @@ def deleteMessage():
     permissionLevel = session['permissionLevel']
     
     for message in messages:
+        print(message['id'],message_id)
         if message['id'] == message_id:
             if message['username'] == username or permissionLevel >= 1:
+                print(messages)
                 messages.remove(message)
+                print(messages)
                 return jsonify({'acknowledgment': 'Message deleted'})
             else:
                 return jsonify({'acknowledgment': 'Insufficient permission level'})
@@ -365,11 +427,15 @@ def whoAmi():
 @app.before_request
 def require_auth():
     # List of routes that don't require authentication
-    whitelist = ['/', '/logout', '/login', '/signup','/whoAmi']
+    whitelist = ['/', '/logout', '/login', '/signup','/whoAmi', '/users/']
 
     # If the requested route is in the whitelist, return early
     if request.path in whitelist:
         return
+    
+    for white in whitelist:
+        if request.path.startswith(white):
+            return
 
     # Get the token from the request headers
     token = request.headers.get('Authorization')
@@ -402,12 +468,14 @@ if __name__ == '__main__':
         with open('channels.json', 'r') as file:
             channels = json.load(file)
     else:
-        channels = {}
+        channels = {"default": []}
 
     atexit.register(save_data)
 
+    print(messages,users,channels)
+
     def run_app():
-        app.run()
+        app.run(debug=False)
 
     if __name__ == '__main__':
         # Create separate threads for app.run() and socketio.run()
