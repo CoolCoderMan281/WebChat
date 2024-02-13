@@ -149,6 +149,18 @@
             aboutMeElement.addEventListener("click", function() {
                 aboutMeElement.contentEditable = true;
             });
+            
+            // On left click of profile picture, prompt for a new URL
+            var profilePicture = document.querySelector(".profile-picture img");
+            profilePicture.addEventListener("click", function() {
+                var newUrl = prompt("Enter the new profile picture URL (None to reset)");
+                if (newUrl == '') {
+                    profilePicture.src = "https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg";
+                }
+                if (newUrl) {
+                    profilePicture.src = newUrl;
+                }
+            });
 
             var saveButton = document.createElement("button");
             saveButton.innerHTML = "Save";
@@ -165,11 +177,13 @@
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4 && xhr.status === 200) {
                         console.log("User updated successfully");
+                        window.location.reload();
                     }
                 };
                 var data = {
                     username: username,
-                    about: aboutMeElement.innerText
+                    about: aboutMeElement.innerText,
+                    profileUrl: profilePicture.src // Add this line to include the profile picture URL in the data
                 };
                 xhr.send(JSON.stringify(data));
             });

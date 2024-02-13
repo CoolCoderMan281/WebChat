@@ -323,6 +323,9 @@ def getChannels():
 
     return jsonify({'channels': channel_list, 'friends': user_friends})
 
+def getprofilepicofusername(username):
+    return users.get(username, {}).get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg')
+
 @app.route('/messages/<channelId>', methods=['GET'])
 def getMessages(channelId):
     """
@@ -341,7 +344,7 @@ def getMessages(channelId):
             friend = channelId[1:]
             formatted_messages = []
             # Add a dummy message frist (DEBUG DELETE LATER)
-            formatted_messages.append({'id': str(uuid.uuid4()), 'channelId': channelId, 'username': "System", 'message': f'You are now chatting with {friend}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"), 'edited': False})
+            formatted_messages.append({'id': str(uuid.uuid4()), 'channelId': channelId, 'username': "System", 'message': f'You are now chatting with {friend}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"), 'edited': False, 'profileUrl': getprofilepicofusername("System")})
             # (DELETE LATER!)
             pmUUID = getUUIDpm(session['username'], friend)
             for message in messages:
@@ -352,6 +355,7 @@ def getMessages(channelId):
                         'username': message['username'],
                         'timestamp': message['timestamp'],
                         'edited': message['edited'],
+                        'profileUrl': getprofilepicofusername(message['username'])
                     }
                     formatted_messages.append(formatted_message)
             return jsonify({'messages': formatted_messages})
@@ -371,6 +375,7 @@ def getMessages(channelId):
                         'username': message['username'],
                         'timestamp': message['timestamp'],
                         'edited': message['edited'],
+                        'profileUrl': getprofilepicofusername(message['username'])
                     }
                 except: # Backup placeholder
                     formatted_message = {
@@ -379,6 +384,7 @@ def getMessages(channelId):
                         'username': message['username'],
                         'timestamp': message['timestamp'],
                         'edited': message['edited'],
+                        'profileUrl': getprofilepicofusername(message['username'])
                     }
                     message = formatted_message
                 formatted_messages.append(formatted_message)
@@ -397,12 +403,20 @@ def editUser():
     """
     about = request.json.get('about')
     username = request.json.get('username')
+    profileUrl = request.json.get('profileUrl')
     if about is not None:
         if session['username'] == username:
             # Limit about to 1000 characters
             if len(about) > 1000:
                 return jsonify({'message': 'About cannot exceed 1000 characters'})
             users[session['username']]['about'] = about
+            print(profileUrl)
+            if profileUrl is not "":
+                users[session['username']]['profileUrl'] = profileUrl
+            else:
+                users[session['username']]['profileUrl'] = 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg'
+            save_data()
+            print(profileUrl)
 
             return jsonify({'message': 'User profile edited successfully'})
         else:
@@ -455,13 +469,13 @@ def users(username):
                 # Convert friends to json
                 if username == session['username']:
                     return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
-                                        profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
+                                        profileUrl=users[username].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg'),
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=True, 
                                         lastOnline = users[username].get('lastOnline', time.time()),
                                         friends=friends, isFriend=isFriends(session['username'], username))
                 else:
                     return render_template('profile.html', username=username, permissionLevel=users[username].get('permissionLevel', -1), 
-                                        profileUrl="https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg", 
+                                        profileUrl=users[username].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg'), 
                                         about=users[username].get('about', 'Im a unmigrated profile :('), owner=False, 
                                         lastOnline = users[username].get('lastOnline', time.time()),
                                         friends=friends, isFriend=isFriends(session['username'], username))

@@ -61,6 +61,7 @@
         }
 
         .message {
+            display: flex;
             margin-bottom: 10px;
         }
 
@@ -76,6 +77,8 @@
 
         .message .content {
             color: #fff;
+            display: flex;
+            flex-direction: column;
         }
 
         .bottom-bar {
@@ -274,8 +277,6 @@
             // Send the request
             xhr.send();
 
-            
-
             // Listen for the response
             xhr.onload = function () {
                 if (xhr.status === 200) {
@@ -293,13 +294,6 @@
                         messagesContainer.innerHTML = "";
                         return;
                     }
-                    console.log(messages);
-                    // using a loop print every message
-                    //for (var i = 0; i < messages.length; i++) {
-                        //console.log(messages[i].username + " | " + messages[i].message + " | " + messages[i].timestamp + " | " + messages[i].id + " | " + messages[i].edited);
-                    //}
-
-                    
 
                     // Check if the scroll is already at the bottom
                     var isAtBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
@@ -309,8 +303,19 @@
 
                     // Add each message to the messages container
                     messages.forEach(function (message) {
+                        
+
                         var messageElement = document.createElement("div");
                         messageElement.classList.add("message");
+
+                        var profilePictureElement = document.createElement("img"); // Create the profile picture element
+                        profilePictureElement.classList.add("profile-picture");
+                        profilePictureElement.src = message.profileUrl; // Set the source of the profile picture
+
+                        // Add CSS styles to make the picture a small circle
+                        profilePictureElement.style.width = "40px";
+                        profilePictureElement.style.height = "40px";
+                        profilePictureElement.style.borderRadius = "50%";
 
                         var usernameElement = document.createElement("div");
                         usernameElement.classList.add("username");
@@ -399,10 +404,9 @@
                         } else {
                             contentElement.textContent = message.message + " (edited)";
                         }
-
-                        messageElement.appendChild(usernameElement);
-                        messageElement.appendChild(contentElement);
-
+                        messageElement.appendChild(profilePictureElement); // Add the profile picture to the message element
+                        messageElement.appendChild(usernameElement); // Add the username element to the message element
+                        usernameElement.appendChild(contentElement); // Add the content element to the message element
                         messagesContainer.appendChild(messageElement);
                     });
 
