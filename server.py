@@ -77,16 +77,17 @@ def signup():
         if username in users:
             return 'Username already exists'
         # Get unix time
-        
+        timestamp = datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")
+        new_uuid = str(uuid.uuid4())
         users[username] = {
             'password': generate_password_hash(password),
             'permissionLevel': 0,
             'about': 'I am a new user',
             'profileUrl': 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg',
             'lastOnline': time.time(),
-            'friends': {}
+            'friends': [],
         }
-        # Ge
+        
         session['username'] = username  # Generate session
         session['token'] = secrets.token_hex(16)  # Generate a unique session token
         session['permissionLevel'] = 0  # Set default permission level
@@ -387,7 +388,9 @@ def users(username):
                 # Build the friends list which needs to have the username and profileUrl
                 friends = []
                 for friend in real_friends:
-                    friends.append({'username': friend, 'profileUrl': users[friend].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg')})
+                    # Only append if the user has friended the friend
+                    if username in users[friend].get('friends', {}):
+                        friends.append({'username': friend, 'profileUrl': users[friend].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg')})
 
                 # Convert friends to json
                 if username == session['username']:
@@ -408,7 +411,7 @@ def users(username):
 # Method called isFriends, accepts 2 usernames and returns a boolean
 def isFriends(user1, user2):
     if user1 in users and user2 in users:
-        if user2 in users[user1]['friends']:
+        if user2 in users[user1]['friends'] and user1 in users[user2]['friends']:
             return True
     return False
 
@@ -452,7 +455,7 @@ def whoAmi():
         A JSON response containing the username of the session.
     """
     if 'username' in session:
-        return jsonify({'username': session['username'], 'permissionLevel': session['permissionLevel']})
+        return jsonify({'username': session['username'], 'permissionLevel': session['permissionLevel'], 'profileUrl': users[session['username']].get('profileUrl', 'https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg')})
     else:
         return jsonify({'username': None})
 

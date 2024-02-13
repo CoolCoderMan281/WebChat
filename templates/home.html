@@ -87,7 +87,7 @@
             padding: 20px;
             position: fixed;
             bottom: 0;
-            height: 5vh; /* Modify this line to set the height of the bottom bar */
+            height: 5%; /* Modify this line to set the height of the bottom bar */
         }
 
         .input-container {
@@ -150,7 +150,7 @@
                         var channels = response.channels;
 
                         // Get the sidebar element
-                        var sidebar = document.getElementById("sidebar");
+                        var sidebar = document.getElementById("channels");
 
                         // Clear the sidebar
                         sidebar.innerHTML = "";
@@ -413,12 +413,15 @@
 
         username = "";
         permissionLevel = 0;
+        profileUrl = "";
+
         fetch("/whoAmi")
             .then(response => response.json())
             .then(data => {
                 var username_tmp = data.username;
                 username = data.username;
                 permissionLevel = data.permissionLevel;
+                profileUrl = data.profileUrl;
                 console.log(data.username)
             })
             .catch(error => console.log("Failed to get username. Please try again later."));
@@ -431,9 +434,11 @@
 </head>
 <body>
     <div id="sidebar" class="sidebar">
-        <label for="channels">Channels:</label>
         <div id="channels"></div> <!-- Add the channels container -->
-    </div>
+        <!-- <div id="profile" style="position: absolute; bottom: 0; left: 0;"></div>
+            <img id="profile_pic" src=" {{ profileUrl }}" alt="Profile Picture" style="width: 100px; height: 100px;">
+            <p id="profile_username">"{{ username }}"</p>
+        </div> -->
     </div>
     <div class="bottom-bar">
         <div class="input-container message-input"> <!-- Add the message-input class to the input container -->
