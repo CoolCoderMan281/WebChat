@@ -127,17 +127,31 @@ def sendMessage():
     if len(message) > 1000:  # Check if message exceeds 1000 characters
         return jsonify({'acknowledgment': 'Message cannot exceed 1000 characters'})
     
-    if channelId not in channels:
-        return jsonify({'acknowledgment': 'Channel creation denied'})
+    if (channelId.startswith("@")):
+        # Ensure that the session is friends with the user past @
+        if not isFriends(session['username'], channelId[1:]):
+            return jsonify({'acknowledgment': 'You are not friends with this user'})
+        pmUUID = getUUIDpm(session['username'], channelId[1:])
+        channelId = pmUUID
+        # If the channel with pmUUID doesn't exist create it
+        if pmUUID not in channels:
+            channels[pmUUID] = []
+            print(f"Created channel {pmUUID}")
+            save_data()
     
     if message.startswith('/'):  # Check if message is a command
         return processCommand(message, username, channelId, permissionLevel)
     
+    if channelId not in channels:
+        return jsonify({'acknowledgment': 'Channel creation denied'})
+
     timestamp = datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)")
     new_uuid = str(uuid.uuid4())
     #print(new_uuid)
     #channels[channelId].append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
     
+    
+
     messages.append({'id': new_uuid, 'channelId': channelId, 'username': username, 'message': message, 'timestamp': timestamp, 'edited': False})
     print(f'#{channelId} > {username}: {message} ({timestamp})')
     return jsonify({'acknowledgment': 'Message received'})
@@ -278,6 +292,12 @@ def processCommand(command, username, channelId, permissionLevel):
         
     return jsonify({'acknowledgment': 'Invalid command'})
 
+def getUUIDpm(username1, username2):
+    sorted_usernames = sorted([username1, username2])
+    uuid_str = ''.join(sorted_usernames)
+    uuid_val = uuid.uuid5(uuid.NAMESPACE_DNS, uuid_str)
+    return "FPM-%"+str(uuid_val)
+
 
 @app.route('/getChannels', methods=['GET'])
 def getChannels():
@@ -291,7 +311,17 @@ def getChannels():
         A JSON response containing the list of channel IDs.
     """
     channel_list = list(channels)
-    return jsonify({'channels': channel_list})
+    
+    # Filter out channel IDs that start with 'FPM-'
+    channel_list = [channel for channel in channel_list if not channel.startswith('FPM-%')]
+
+    # Add user's friends who have friended them back
+    user_friends = []
+    for friend in users.get(session['username'], {}).get('friends', []):
+        if session['username'] in users.get(friend, {}).get('friends', []):
+            user_friends.append(friend)
+
+    return jsonify({'channels': channel_list, 'friends': user_friends})
 
 @app.route('/messages/<channelId>', methods=['GET'])
 def getMessages(channelId):
@@ -305,30 +335,54 @@ def getMessages(channelId):
         A JSON response containing the list of messages in the channel.
     """
 
-    users.get(session['username'], {})['lastOnline'] = time.time()
+    if channelId.startswith("@"):
+        # Ensure that the session is friends with the user past @
+        if isFriends(session['username'], channelId[1:]):
+            friend = channelId[1:]
+            formatted_messages = []
+            # Add a dummy message frist (DEBUG DELETE LATER)
+            formatted_messages.append({'id': str(uuid.uuid4()), 'channelId': channelId, 'username': "System", 'message': f'You are now chatting with {friend}', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"), 'edited': False})
+            # (DELETE LATER!)
+            pmUUID = getUUIDpm(session['username'], friend)
+            for message in messages:
+                if message['channelId'] == pmUUID and (message['username'] == session['username'] or message['username'] == friend):
+                    formatted_message = {
+                        'id': message['id'],
+                        'message': message['message'],
+                        'username': message['username'],
+                        'timestamp': message['timestamp'],
+                        'edited': message['edited'],
+                    }
+                    formatted_messages.append(formatted_message)
+            return jsonify({'messages': formatted_messages})
+        else:
+            # Return complaining about not being friends
+            return jsonify({'messages': [{'id': str(uuid.uuid4()), 'channelId': channelId, 'username': "System", 'message': f'You are not friends with {channelId[1:]}.', 'timestamp': datetime.datetime.now().strftime("%H:%M (%m/%d/%Y)"), 'edited': False}]})
+    else:
+        users.get(session['username'], {})['lastOnline'] = time.time()
 
-    formatted_messages = []
-    for message in messages:
-        if message['channelId'] == channelId:
-            try:
-                formatted_message = {
-                    'id': message['id'],
-                    'message': message['message'],
-                    'username': message['username'],
-                    'timestamp': message['timestamp'],
-                    'edited': message['edited'],
-                }
-            except: # Backup placeholder
-                formatted_message = {
-                    'id': message['id'],
-                    'message': message['message'],
-                    'username': message['username'],
-                    'timestamp': message['timestamp'],
-                    'edited': message['edited'],
-                }
-                message = formatted_message
-            formatted_messages.append(formatted_message)
-    return jsonify({'messages': formatted_messages})
+        formatted_messages = []
+        for message in messages:
+            if message['channelId'] == channelId:
+                try:
+                    formatted_message = {
+                        'id': message['id'],
+                        'message': message['message'],
+                        'username': message['username'],
+                        'timestamp': message['timestamp'],
+                        'edited': message['edited'],
+                    }
+                except: # Backup placeholder
+                    formatted_message = {
+                        'id': message['id'],
+                        'message': message['message'],
+                        'username': message['username'],
+                        'timestamp': message['timestamp'],
+                        'edited': message['edited'],
+                    }
+                    message = formatted_message
+                formatted_messages.append(formatted_message)
+        return jsonify({'messages': formatted_messages})
 
 @app.route('/editUser', methods=['POST'])
 def editUser():
@@ -345,7 +399,11 @@ def editUser():
     username = request.json.get('username')
     if about is not None:
         if session['username'] == username:
+            # Limit about to 1000 characters
+            if len(about) > 1000:
+                return jsonify({'message': 'About cannot exceed 1000 characters'})
             users[session['username']]['about'] = about
+
             return jsonify({'message': 'User profile edited successfully'})
         else:
             return jsonify({'message': 'You do not have permission to edit this profile'})
@@ -369,6 +427,8 @@ def users(username):
         #print(updateFriend)
         if (updateFriend != None):
             if updateFriend:
+                if (users[session['username']]['friends'] == {}):
+                    users[session['username']]['friends'] = []
                 #print("Adding..")
                 users[session['username']]['friends'].append(username);
                 save_data();
