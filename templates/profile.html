@@ -61,7 +61,7 @@
         <img src="{{ profileUrl }}" alt="Profile Picture" style="border-radius: 50%; width: 100%; height: 100%;">
         <div class="small-circle"></div> <!-- Add this line -->
     </div>
-    <div class="name">{{ username }}</div>
+    <div class="name" id="uname">Loading..</div>
     <div class="permission-level">Permission Level: {{ permissionLevel }}</div>
     <br></br><br></br><br></br>
     <h2>About Me</h2>
@@ -110,13 +110,23 @@
     <button class="return-button" onclick="window.location.href = '/'">Return to /</button>
     <!-- <button class="return-button" onclick="saveChanges()">Save</button> -->
     <script>
-        var username = "{{ username}}";
+        var banned = "{{ banned }}"
+        if (banned === "True") {
+            banned = true;
+            username = "[BANNED] " + "{{ username }}";
+        } else {
+            banned = false;
+            username = "{{ username }}";
+        }
+        // Fill uname with username
+        document.getElementById("uname").innerHTML = username;
         var permissionLevel = "{{ permissionLevel }}";
         var about = "{{ about }}";
         var profileUrl = "{{ profileUrl }}";
         var lastOnline = "{{ lastOnline }}"
         var owner = "{{ owner }}";
         var isFriend = "{{ isFriend }}";
+        
 
         if (isFriend === "False")
         {
@@ -135,7 +145,11 @@
         // Calculate the difference in seconds
         var differenceInSeconds = (currentTime - lastOnlineMilliseconds) / 1000;
 
-        if (differenceInSeconds < 15) {
+        if (banned)
+        {
+            var smallCircle = document.querySelector(".small-circle");
+            smallCircle.style.backgroundColor = "red";
+        } else if (differenceInSeconds < 15) {
             var smallCircle = document.querySelector(".small-circle");
             smallCircle.style.backgroundColor = "green";
         } else {
@@ -143,7 +157,7 @@
             smallCircle.style.backgroundColor = "gray";
         }
 
-        if (owner === "True") {
+        if (owner === "True" && !banned) {
             var aboutMeElement = document.getElementById("aboutMe");
             aboutMeElement.classList.add("editable");
             aboutMeElement.addEventListener("click", function() {
@@ -187,7 +201,7 @@
                 };
                 xhr.send(JSON.stringify(data));
             });
-        } else {
+        } else{
             var friendElement = document.createElement("button");
             friendElement.innerHTML = "Friend Action";
             friendElement.style.display = "block";
@@ -198,28 +212,32 @@
             friendElement.style.marginLeft = "100px"; // Add this line to create space between the buttons
             friendElement.style.display = "block"; // Add this line to make the button visible
 
-            if (isFriend == true) {
-                friendElement.innerHTML = "Remove Friend";
+            if (banned) {
+                friendElement.innerHTML = "Banned";
+                
             } else {
-                friendElement.innerHTML = "Add Friend";
-            }
-
-            friendElement.addEventListener("click", function() {
+                if (isFriend == true) {
+                    friendElement.innerHTML = "Remove Friend";
+                } else {
+                    friendElement.innerHTML = "Add Friend";
+                }
+                friendElement.addEventListener("click", function() {
                 var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/users/"+username, true);
-                xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState === 4 && xhr.status === 200) {
-                        //alert("Friend added successfully "+!isFriend);
-                        window.location.reload();
+                    xhr.open("POST", "/users/"+username, true);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                            //alert("Friend added successfully "+!isFriend);
+                            window.location.reload();
 
-                    }
-                };
-                var data = {
-                    "updateFriend": !isFriend,
-                };
-                xhr.send(JSON.stringify(data));
-            });
+                        }
+                    };
+                    var data = {
+                        "updateFriend": !isFriend,
+                    };
+                    xhr.send(JSON.stringify(data));
+                });
+            }
         }
     </script>
 </body>

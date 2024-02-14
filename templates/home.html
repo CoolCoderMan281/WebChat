@@ -8,6 +8,7 @@
 -->
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Home</title>
     <style>
@@ -22,42 +23,59 @@
             background-color: #333;
             color: #fff;
         }
-        
+
         .sidebar {
-            width: 10%;
+            z-index: 1;
+            width: 7.25%;
             background-color: #222;
             padding: 20px;
-            height: 100%; /* Add this line to set the height of the sidebar */
+            height: 100%;
+            /* Add this line to set the height of the sidebar */
             position: fixed;
             left: 0;
         }
-        
+
         .channel {
             margin-bottom: 10px;
+            border: 1px solid black;
+            border-radius: 5px;
+            color: gray;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: fit-content;
+            background-color: rgb(86, 86, 86);
+            /* Add this line to set the background color of the channel */
         }
-        
+
         .channel a {
-            text-decoration: none;
             color: #fff;
-        }
-        
-        .channel a:hover {
-            color: #ccc;
+            text-decoration: none;
         }
 
         .messages {
+            z-index: 2;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             overflow-y: auto;
-            flex-grow: 1; /* Add this line to make the messages container take up all available space */
+            flex-grow: 1;
+            /* Add this line to make the messages container take up all available space */
             padding: 20px;
-            background-color: #444; /* Modify this line to set the background color */
-            margin-top: 20px;
-            margin-bottom: 60px; /* Adjust this value to leave enough space for the bottom bar */
-            width: 86%; /* Modify this line to set the width of the messages box */
-            margin-left: auto; /* Add this line to anchor the messages box to the right */
-            margin-right: 0; /* Add this line to remove any right margin */
+            background-color: #444;
+            /* Modify this line to set the background color */
+            margin-top: 0;
+            /* Adjust this value to remove the top margin */
+            margin-bottom: 60px;
+            /* Adjust this value to leave enough space for the bottom bar */
+            width: 87%;
+            /* Modify this line to set the width of the messages box */
+            margin-left: auto;
+            /* Add this line to anchor the messages box to the right */
+            margin-right: 0;
+            /* Add this line to remove any right margin */
+            border-radius: 10px; /* Add this line to round the messages box */
         }
 
         .message {
@@ -77,11 +95,12 @@
 
         .message .content {
             color: #fff;
-            display: flex;
-            flex-direction: column;
+            font-weight: normal;
+            word-wrap: break-word; /* Add this line to enable word wrap */
         }
 
         .bottom-bar {
+            z-index: 1;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -90,14 +109,16 @@
             padding: 20px;
             position: fixed;
             bottom: 0;
-            height: 5%; /* Modify this line to set the height of the bottom bar */
+            height: 5%;
+            /* Modify this line to set the height of the bottom bar */
         }
 
         .input-container {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            flex-grow: 1; /* Add this line to make the input container take up remaining space */
+            flex-grow: 1;
+            /* Add this line to make the input container take up remaining space */
         }
 
         .input-container label {
@@ -106,13 +127,18 @@
 
         .input-container input {
             margin-top: 5px;
-            width: 100%; /* Add this line to set the width of the input field */
-            height: 40px; /* Modify this line to set the height of the input field */
+            width: 95%;
+            /* Add this line to set the width of the input field */
+            height: 40px;
+            /* Modify this line to set the height of the input field */
+            border-radius: 20px;
+            /* Add this line to make the input field rounded */
         }
 
         .send-button {
             margin-top: 10px;
-            width: 10%; /* Add this line to set the width of the send button */
+            width: 10%;
+            /* Add this line to set the width of the send button */
         }
 
         /* Add this CSS rule to confine the username box to the sidebar */
@@ -122,12 +148,14 @@
 
         /* Add this CSS rule to style the username input */
         .username-input {
-            width: 10%; /* Add this line to set the width of the username input */
+            width: 10%;
+            /* Add this line to set the width of the username input */
         }
 
         /* Add this CSS rule to style the message input */
         .message-input {
-            width: 95%; /* Add this line to set the width of the message input */
+            width: 95%;
+            /* Add this line to set the width of the message input */
         }
     </style>
     <script>
@@ -146,75 +174,75 @@
             xhr.send();
 
             // Listen for the response
-            xhr.onload = function() {
-                    if (xhr.status === 200) {
-                        // Parse the response JSON
-                        var response = JSON.parse(xhr.responseText);
-                        var channels = response.channels;
-                        var friends = response.friends;
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    // Parse the response JSON
+                    var response = JSON.parse(xhr.responseText);
+                    var channels = response.channels;
+                    var friends = response.friends;
 
-                        // Get the sidebar element
-                        var sidebar = document.getElementById("channels");
+                    // Get the sidebar element
+                    var sidebar = document.getElementById("channels");
 
-                        // Clear the sidebar
-                        sidebar.innerHTML = "";
+                    // Clear the sidebar
+                    sidebar.innerHTML = "";
 
-                        // Add the "Channels: " header
-                        var channelsHeader = document.createElement("br");
-                        //channelsHeader.textContent = "Channels: ";
-                        sidebar.appendChild(channelsHeader);
+                    // Add the "Channels: " header
+                    var channelsHeader = document.createElement("br");
+                    //channelsHeader.textContent = "Channels: ";
+                    sidebar.appendChild(channelsHeader);
 
-                        // Add each channel to the sidebar
-                        channels.forEach(function(channel) {
-                            var channelElement = document.createElement("div");
-                            channelElement.classList.add("channel");
+                    // Add each channel to the sidebar
+                    channels.forEach(function (channel) {
+                        var channelElement = document.createElement("div");
+                        channelElement.classList.add("channel");
 
-                            var channelLink = document.createElement("a");
-                            channelLink.href = "#";
-                            channelLink.textContent = "#" + channel; // Add "#" to the start of the channel name
+                        var channelLink = document.createElement("a");
+                        channelLink.href = "#";
+                        channelLink.textContent = "#" + channel; // Add "#" to the start of the channel name
 
-                            channelLink.addEventListener("click", function() {
-                                // Set the channelId variable to the channel's id
-                                channelId = channel;
-                                refreshMessages();
-                            });
-
-                            channelElement.appendChild(channelLink);
-                            sidebar.appendChild(channelElement);
+                        channelLink.addEventListener("click", function () {
+                            // Set the channelId variable to the channel's id
+                            channelId = channel;
+                            refreshMessages();
                         });
 
-                        // Add each channel to the sidebar
-                        friends.forEach(function(channel) {
-                            channel = "@"+channel;
-                            var channelElement = document.createElement("div");
-                            channelElement.classList.add("channel");
+                        channelElement.appendChild(channelLink);
+                        sidebar.appendChild(channelElement);
+                    });
 
-                            var channelLink = document.createElement("a");
-                            channelLink.href = "#";
-                            channelLink.textContent = channel;
+                    // Add each channel to the sidebar
+                    friends.forEach(function (channel) {
+                        channel = "@" + channel;
+                        var channelElement = document.createElement("div");
+                        channelElement.classList.add("channel");
 
-                            channelLink.addEventListener("click", function() {
-                                // Set the channelId variable to the channel's id
-                                channelId = channel;
-                                refreshMessages();
-                            });
+                        var channelLink = document.createElement("a");
+                        channelLink.href = "#";
+                        channelLink.textContent = channel;
 
-                            channelElement.appendChild(channelLink);
-                            sidebar.appendChild(channelElement);
+                        channelLink.addEventListener("click", function () {
+                            // Set the channelId variable to the channel's id
+                            channelId = channel;
+                            refreshMessages();
                         });
-                    } else {
-                        // Display an error message to the user
-                        alert("Failed to get channels. Please try again later.");
-                    }
-                };
+
+                        channelElement.appendChild(channelLink);
+                        sidebar.appendChild(channelElement);
+                    });
+                } else {
+                    // Display an error message to the user
+                    alert("Failed to get channels. Please try again later.");
+                }
+            };
 
             // Listen for any network errors
-            xhr.onerror = function() {
+            xhr.onerror = function () {
                 // Display an error message to the user
                 alert("Network error occurred. Please check your internet connection and try again.");
             };
         }
-        
+
         function sendMessage() {
             // Get the message and username from the input fields
             var message = document.getElementById("messageInput").value;
@@ -242,7 +270,7 @@
             xhr.send(requestBody);
 
             // Listen for the response
-            xhr.onload = function() {
+            xhr.onload = function () {
                 if (xhr.status === 200) {
                     var response = JSON.parse(xhr.responseText);
                     if (response.acknowledgment !== 'Message received') {
@@ -259,7 +287,7 @@
             };
 
             // Listen for any network errors
-            xhr.onerror = function() {
+            xhr.onerror = function () {
                 // Display an error message to the user
                 alert("Network error occurred. Please check your internet connection and try again.");
             };
@@ -287,8 +315,7 @@
                     // Get the messages container element
                     var messagesContainer = document.getElementById("messagesContainer");
 
-                    if (messages.length == 0)
-                    {
+                    if (messages.length == 0) {
                         // Clear the messages container
                         //console.log("No");
                         messagesContainer.innerHTML = "";
@@ -303,7 +330,7 @@
 
                     // Add each message to the messages container
                     messages.forEach(function (message) {
-                        
+
 
                         var messageElement = document.createElement("div");
                         messageElement.classList.add("message");
@@ -319,13 +346,13 @@
 
                         var usernameElement = document.createElement("div");
                         usernameElement.classList.add("username");
-                        usernameElement.innerHTML = `<a href="/users/${message.username}" style="color: lightblue;">${message.username}</a> | ${message.timestamp}`;
+                        usernameElement.innerHTML = `<a href="/users/${message.username}" style="color: lightblue;"> ${message.username}</a><span style="color: lightgray;"> | ${message.timestamp}</span>`;
 
                         var replyButton = document.createElement("button"); // Create the edit button
                         replyButton.classList.add("reply-button")
                         replyButton.textContent = "Reply";
-                        replyButton.addEventListener("click", function() {
-                            document.getElementById("messageInput").value = "\""+message.message+"\" ";
+                        replyButton.addEventListener("click", function () {
+                            document.getElementById("messageInput").value = "\"" + message.message + "\" ";
                         });
                         usernameElement.appendChild(replyButton); // Add the edit button to the username element
 
@@ -335,7 +362,7 @@
                             editButton.classList.add("edit-button")
 
                             editButton.textContent = "Edit";
-                            editButton.addEventListener("click", function() {
+                            editButton.addEventListener("click", function () {
                                 // Call the /editMessage route here
                                 // You can use XMLHttpRequest or fetch API to make the request
                                 // Example using fetch API:
@@ -351,17 +378,17 @@
                                     },
                                     body: JSON.stringify({ "id": message.id, "newContent": newCon }) // Pass the message ID and new content to the server
                                 })
-                                .then(function(response) {
-                                    // Handle the response
-                                    if (response.ok) {
-                                        // Edit successful, handle the response accordingly
-                                    } else {
-                                        // Edit failed, handle the response accordingly
-                                    }
-                                })
-                                .catch(function(error) {
-                                    // Handle any network or request error
-                                });
+                                    .then(function (response) {
+                                        // Handle the response
+                                        if (response.ok) {
+                                            // Edit successful, handle the response accordingly
+                                        } else {
+                                            // Edit failed, handle the response accordingly
+                                        }
+                                    })
+                                    .catch(function (error) {
+                                        // Handle any network or request error
+                                    });
                             });
                             usernameElement.appendChild(editButton); // Add the edit button to the username element
                         }
@@ -372,7 +399,7 @@
                             deleteButton.classList.add("delete-button")
 
                             deleteButton.textContent = "Delete";
-                            deleteButton.addEventListener("click", function() {
+                            deleteButton.addEventListener("click", function () {
                                 fetch("/deleteMessage", {
                                     method: "POST",
                                     headers: {
@@ -381,28 +408,28 @@
                                     },
                                     body: JSON.stringify({ "id": message.id }) // Pass the message ID and new content to the server
                                 })
-                                .then(function(response) {
-                                    // Handle the response
-                                    if (response.ok) {
-                                        // Edit successful, handle the response accordingly
-                                    } else {
-                                        // Edit failed, handle the response accordingly
-                                    }
-                                })
-                                .catch(function(error) {
-                                    // Handle any network or request error
-                                });
+                                    .then(function (response) {
+                                        // Handle the response
+                                        if (response.ok) {
+                                            refreshMessages();
+                                            // Edit successful, handle the response accordingly
+                                        } else {
+                                            // Edit failed, handle the response accordingly
+                                        }
+                                    })
+                                    .catch(function (error) {
+                                        // Handle any network or request error
+                                    });
                             });
                             usernameElement.appendChild(deleteButton); // Add the edit button to the username element
                         }
 
                         var contentElement = document.createElement("div");
                         contentElement.classList.add("content");
-                        if (message.edited == false)
-                        {
-                            contentElement.textContent = message.message;
+                        if (message.edited == false) {
+                            contentElement.textContent = " " + message.message;
                         } else {
-                            contentElement.textContent = message.message + " (edited)";
+                            contentElement.textContent = " " + message.message + " (edited)";
                         }
                         messageElement.appendChild(profilePictureElement); // Add the profile picture to the message element
                         messageElement.appendChild(usernameElement); // Add the username element to the message element
@@ -428,7 +455,7 @@
         }
 
         // Get auth token
-        var authToken =  "{{ token }}";
+        var authToken = "{{ token }}";
 
         // Call the getChannels function to populate the sidebar
         getChannels();
@@ -457,7 +484,9 @@
 
     </script>
 </head>
+
 <body>
+    <script src="https://unpkg.com/emoji-picker-element"></script>
     <div id="sidebar" class="sidebar">
         <div id="channels"></div> <!-- Add the channels container -->
         <!-- <div id="profile" style="position: absolute; bottom: 0; left: 0;"></div>
@@ -466,10 +495,21 @@
         </div> -->
     </div>
     <div class="bottom-bar">
-        <div class="input-container message-input"> <!-- Add the message-input class to the input container -->
-            <input type="text" id="messageInput" placeholder="Enter your message" onkeydown="if(event.keyCode === 13) sendMessage()">
+        <div class="input-container message-input" style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; box-sizing: border-box;"> <!-- Add the message-input class to the input container -->
+            <input type="text" id="messageInput" placeholder="Enter your message"
+                onkeydown="if(event.keyCode === 13) sendMessage()" style="flex-grow: 1; box-sizing: border-box; background-color: #333; color: #fff; border: none; padding: 10px;">
+            <button id="emojiPickerButton" style="background-color: #333; color: #fff; border-radius: 50%; padding: 10px; border: none;">😊</button>
+            <script>
+                const emojiPickerButton = document.getElementById('emojiPickerButton');
+
+                emojiPickerButton.addEventListener('click', () => {
+                    alert("Feature is still cooking :(\nPlease use your keyboard to input emojis."+
+                        "\n\nFor Windows: Press 'Windows' + '.' or 'Windows' + ';' to open the emoji picker.\n\n"+
+                        "Feature postponed until ui revamp. ");
+                });
+            </script>
         </div>
-    </div>
+    </div>  
     <div class="messages" id="messagesContainer"></div>
 </body>
 </html>
