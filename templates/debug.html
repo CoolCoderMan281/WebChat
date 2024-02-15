@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XHR Request Page</title>
+</head>
+<body>
+    <h1>XHR Request Page</h1>
+
+    <form id="requestForm">
+        <label for="urlInput">URL:</label>
+        <input type="text" id="urlInput" required>
+        <br>
+        <label for="methodInput">Method:</label>
+        <select id="methodInput" required>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+        </select>
+        <br>
+        <label for="dataInput">Data:</label>
+        <textarea id="dataInput"></textarea>
+        <br>
+        <button type="submit">Send Request</button>
+    </form>
+
+    <script>
+        document.getElementById('requestForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            var url = document.getElementById('urlInput').value;
+            var method = document.getElementById('methodInput').value;
+            var data = document.getElementById('dataInput').value;
+
+            var token = "{{ token }}";
+
+            var xhr = new XMLHttpRequest();
+            xhr.open(method, ""+url, true);
+            xhr.setRequestHeader("Authorization", token);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        alert('Response: ' + xhr.responseText);
+                        console.log(xhr.responseText);
+                    } else {
+                        alert('Error: ' + xhr.status);
+                    }
+                }
+            };
+            xhr.send(data);
+        });
+    </script>
+</body>
+</html>

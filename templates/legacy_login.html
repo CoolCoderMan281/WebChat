@@ -44,24 +44,5 @@
     <div style="text-align: center;">
         <p>Don't have an account? <a href="/signup">Signup</a></p>
     </div>
-    <!-- If {{ error }} is not empty then display it -->
-    <script>
-        var error = "{{ error }}";
-        if (error) {
-            // Insert a document element below the signup notice
-            var p = document.createElement("p");
-            p.style.color = "red";
-            p.innerHTML = error;
-            document.querySelector("div").appendChild(p);
-
-            // Fade out the error message after 5 seconds
-            setTimeout(function() {
-                p.style.opacity = "0";
-                setTimeout(function() {
-                    p.remove();
-                }, 1000);
-            }, 5000);
-        }
-    </script>
 </body>
 </html>

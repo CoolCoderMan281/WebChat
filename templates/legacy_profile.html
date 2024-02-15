@@ -58,11 +58,11 @@
 </head>
 <body>
     <div class="profile-picture">
-        <img id="profilePic" src="{{ profileUrl }}" alt="Profile Picture" style="border-radius: 50%; width: 100%; height: 100%;">
+        <img src="{{ profileUrl }}" alt="Profile Picture" style="border-radius: 50%; width: 100%; height: 100%;">
         <div class="small-circle"></div> <!-- Add this line -->
     </div>
     <div class="name" id="uname">Loading..</div>
-    <div class="permission-level" id="uperm">Permission Level: {{ permissionLevel }}</div>
+    <div class="permission-level">Permission Level: {{ permissionLevel }}</div>
     <br></br><br></br><br></br>
     <h2>About Me</h2>
     <div class="about-me" id="aboutMe">{{ about }}</div>
@@ -71,20 +71,38 @@
         <ul id="friendsList">
             <!-- BEGIN: Insert friends list using JS -->
             <script>
-                var friends = '{{friends|tojson}}';
-                // Fill the friends list
                 var friendsList = document.getElementById("friendsList");
-                friendsList.innerHTML = "";
-                
+                var friends = '{{friends|tojson}}';
+
+                // If no friends are found, display a message
+                if (friends === "[]") {
+                    var listItem = document.createElement("li");
+                    listItem.textContent = "No friends found";
+                    friendsList.appendChild(listItem);
+                }
+
+                // Convert the string to a JSON object
                 friends = JSON.parse(friends);
 
-                for (var i = 0; i < friends.length; i++) {
-                    var friend = friends[i];
-                    // alert(friend);
-                    var friendElement = document.createElement("li");
-                    friendElement.innerHTML = "<a href='/users/" + friend.username + "'><img src='" + friend.profileUrl + "' style='width: 50px; height: 50px; border-radius: 50%;'>" + friend.username + "</a>";
-                    friendsList.appendChild(friendElement);
-                }
+                friends.forEach(function(friend) {
+                    console.log(friend.username);
+                    var listItem = document.createElement("li");
+                    var profilePicture = document.createElement("img");
+                    profilePicture.src = friend.profileUrl;
+                    profilePicture.alt = "Profile Picture";
+                    profilePicture.style.borderRadius = "50%";
+                    profilePicture.style.width = "50px";
+                    profilePicture.style.height = "50px";
+                    listItem.appendChild(profilePicture);
+                    var username = document.createElement("span");
+                    var usernameLink = document.createElement("a");
+                    usernameLink.href = "/users/" + friend.username;
+                    usernameLink.textContent = friend.username;
+                    usernameLink.style.color = "lightblue"; // Add this line to set the text color to light blue
+                    username.appendChild(usernameLink);
+                    listItem.appendChild(username);
+                    friendsList.appendChild(listItem);
+                });
             </script>
             <!-- END: Insert friends list using JS -->
         </ul>
@@ -92,20 +110,54 @@
     <button class="return-button" onclick="window.location.href = '/'">Return to /</button>
     <!-- <button class="return-button" onclick="saveChanges()">Save</button> -->
     <script>
+        var banned = "{{ banned }}"
+        if (banned === "True") {
+            banned = true;
+            username = "[BANNED] " + "{{ username }}";
+        } else {
+            banned = false;
+            username = "{{ username }}";
+        }
         // Fill uname with username
-        var username = "{{ username }}"
         document.getElementById("uname").innerHTML = username;
         var permissionLevel = "{{ permissionLevel }}";
-        document.getElementById("uperm").innerHTML = "Permission Level: "+permissionLevel;
         var about = "{{ about }}";
-        document.getElementById("aboutMe").innerHTML = about;
         var profileUrl = "{{ profileUrl }}";
-        document.getElementById("profilePic").src = profileUrl;
-        var owner = "{{ editable }}";
+        var lastOnline = "{{ lastOnline }}"
+        var owner = "{{ owner }}";
         var isFriend = "{{ isFriend }}";
-        if (owner === "True")
+        
+
+        if (isFriend === "False")
         {
-            owner = true;
+            isFriend = false;
+        } else {
+            isFriend = true;
+        }
+
+        //alert(isFriend);
+        // Convert lastOnline to milliseconds
+        var lastOnlineMilliseconds = lastOnline * 1000;
+
+        // Get the current time in milliseconds
+        var currentTime = new Date().getTime();
+
+        // Calculate the difference in seconds
+        var differenceInSeconds = (currentTime - lastOnlineMilliseconds) / 1000;
+
+        if (banned)
+        {
+            var smallCircle = document.querySelector(".small-circle");
+            smallCircle.style.backgroundColor = "red";
+        } else if (differenceInSeconds < 15) {
+            var smallCircle = document.querySelector(".small-circle");
+            smallCircle.style.backgroundColor = "green";
+        } else {
+            var smallCircle = document.querySelector(".small-circle");
+            smallCircle.style.backgroundColor = "gray";
+        }
+
+        if (owner === "True" && !banned) {
             var aboutMeElement = document.getElementById("aboutMe");
             aboutMeElement.classList.add("editable");
             aboutMeElement.addEventListener("click", function() {
@@ -134,77 +186,55 @@
 
             saveButton.addEventListener("click", function() {
                 var xhr = new XMLHttpRequest();
-                xhr.open("PATCH", "/users/"+username, true);
+                xhr.open("POST", "/editUser", true);
                 xhr.setRequestHeader("Content-Type", "application/json");
                 xhr.onreadystatechange = function() {
                     if (xhr.readyState === 4 && xhr.status === 200) {
-                        // If response has a error key display it
-                        var response = JSON.parse(xhr.responseText);
-                        if (response.error) {
-                            alert(response.error);
-                            return;
-                        }
                         console.log("User updated successfully");
                         window.location.reload();
                     }
                 };
                 var data = {
+                    username: username,
                     about: aboutMeElement.innerText,
                     profileUrl: profilePicture.src // Add this line to include the profile picture URL in the data
                 };
                 xhr.send(JSON.stringify(data));
             });
-        } else {
-            if (isFriend === "True") {
-                // Add the remove friend button
-                var removeFriendButton = document.createElement("button");
-                removeFriendButton.innerHTML = "Remove Friend";
-                removeFriendButton.classList.add("return-button");
-                var returnButton = document.querySelector(".return-button");
-                returnButton.parentNode.insertBefore(removeFriendButton, returnButton.nextSibling);
-                removeFriendButton.style.marginLeft = "100px"; // Add this line to create space between the buttons
-                removeFriendButton.style.display = "block"; // Add this line to make the button visible
-                removeFriendButton.addEventListener("click", function() {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("PATCH", "/users/"+username, true);
-                    xhr.setRequestHeader("Content-Type", "application/json");
-                    // body should include a 'isFriend': false
-                    xhr.onreadystatechange = function() {
-                        if (xhr.readyState === 4 && xhr.status === 200) {
-                            console.log("Friend removed successfully");
-                            window.location.reload();
-                        }
-                    };
-                    var data = {
-                        isFriend: false
-                    };
-                    
-                    xhr.send(JSON.stringify(data));
-                });
+        } else{
+            var friendElement = document.createElement("button");
+            friendElement.innerHTML = "Friend Action";
+            friendElement.style.display = "block";
+            friendElement.classList.add("return-button");
+            friendElement.style.marginTop = "20px";
+            var returnButton = document.querySelector(".return-button");
+            returnButton.parentNode.insertBefore(friendElement, returnButton.nextSibling);
+            friendElement.style.marginLeft = "100px"; // Add this line to create space between the buttons
+            friendElement.style.display = "block"; // Add this line to make the button visible
+
+            if (banned) {
+                friendElement.innerHTML = "Banned";
+                
             } else {
-                // Add the add friend button
-                var addFriendButton = document.createElement("button");
-                addFriendButton.innerHTML = "Add Friend";
-                addFriendButton.classList.add("return-button");
-                var returnButton = document.querySelector(".return-button");
-                returnButton.parentNode.insertBefore(addFriendButton, returnButton.nextSibling);
-                addFriendButton.style.marginLeft = "100px"; // Add this line to create space between the buttons
-                addFriendButton.style.display = "block"; // Add this line to make the button visible
-                addFriendButton.addEventListener("click", function() {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("PATCH", "/users/"+username, true);
+                if (isFriend == true) {
+                    friendElement.innerHTML = "Remove Friend";
+                } else {
+                    friendElement.innerHTML = "Add Friend";
+                }
+                friendElement.addEventListener("click", function() {
+                var xhr = new XMLHttpRequest();
+                    xhr.open("POST", "/users/"+username, true);
                     xhr.setRequestHeader("Content-Type", "application/json");
-                    // body should include a 'isFriend': true
                     xhr.onreadystatechange = function() {
                         if (xhr.readyState === 4 && xhr.status === 200) {
-                            console.log("Friend added successfully");
+                            //alert("Friend added successfully "+!isFriend);
                             window.location.reload();
+
                         }
                     };
                     var data = {
-                        isFriend: true
+                        "updateFriend": !isFriend,
                     };
-                    
                     xhr.send(JSON.stringify(data));
                 });
             }

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #333;
+        }
+        .sidebar {
+            width: 5%;
+            background-color: #666;
+            height: 100vh;
+        }
+        .chat-area {
+            z-index: 2;
+            width: 95%;
+            height: 92vh;
+            background-color: #333;
+            /* Move it 3vh down */
+            position: relative;
+            overflow: auto; /* Added */
+            top: 3vh;
+        }
+        .message-box {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 5vh; /* Adjusted height */
+            background-color: #444;
+            display: flex;
+            color: #fff; /* New */
+        }
+        .message-input {
+            flex-grow: 1;
+            color: #fff; /* New */
+            background-color: #333; /* New */
+        }
+        .profile {
+            width: 5%;
+            height: 100%;
+            background-color: #666;
+            display: flex; /* New */
+            align-items: center; /* New */
+            justify-content: flex-start; /* New */
+        }
+        button {
+            background-color: #666; /* New */
+            color: #fff; /* New */
+            border: none; /* New */
+        }
+        .channel-bar {
+            z-index: 3;
+            width: 95%; /* Adjusted */
+            height: 3vh;
+            background-color: #3b3b3b;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 5%; /* Adjusted */
+            border: 1px solid #666; /* New */
+        }
+        .profile span {
+            max-width: 70%; /* Adjust as needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block; /* New */
+            transform-origin: left; /* New */
+            transform: scale(1); /* New */
+            white-space: nowrap;
+            margin-left: auto; /* New */
+        }
+        .profile img {
+            position: absolute;
+            top: 50%; /* Adjusted */
+            left: 0;
+            width: 3vh; /* Adjusted */
+            height: 3vh; /* Adjusted */
+            object-fit: cover;
+            border-radius: 50%; /* New */
+            transform: translateY(-50%); /* New */
+        }
+        .channel {
+            color: #fff;
+            display: block;
+        }
+        .messages {
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            overflow-y: auto;
+            flex-grow: 1;
+            /* Add this line to make the messages container take up all available space */
+            padding: 20px;
+            background-color: #444;
+            /* Modify this line to set the background color */
+            margin-top: 0;
+            /* Adjust this value to remove the top margin */
+            margin-bottom: 60px;
+            /* Adjust this value to leave enough space for the bottom bar */
+            width: 87%;
+            /* Modify this line to set the width of the messages box */
+            margin-left: auto;
+            /* Add this line to anchor the messages box to the right */
+            margin-right: 0;
+            /* Add this line to remove any right margin */
+            border-radius: 10px; /* Add this line to round the messages box */
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 10px;
+        }
+
+        .message .time {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .message .username {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .message .content {
+            color: #fff;
+            font-weight: normal;
+            word-wrap: break-word; /* Add this line to enable word wrap */
+        }
+    </style>
+</head>
+<body>
+    <div class="channel-bar">
+        <span>{{ currentChannel }}</span> <!-- Current channel -->
+    </div>
+    <div class="sidebar">
+        <!-- Sidebar content goes here -->
+    </div>
+    <div class="chat-area", id="chat-area">
+        <!-- Chat content goes here -->
+    </div>
+    <div class="message-box">
+        <div class="profile">
+            <img src="{{ profileUrl }}" alt="Profile Picture"> <!-- Profile picture -->
+            <span>{{ username }}</span> <!-- Username -->
+        </div>
+        <input type="text" id="msg-input" class="message-input" placeholder="Type a message..."
+            onkeydown="if(event.keyCode === 13) sendMessage()" style="flex-grow: 1; box-sizing: border-box; background-color: #333; color: #fff; border: none; padding: 10px;"> <!-- Message input box -->
+        <button class="emoji-button" onclick="alert('Next update')">😀</button> <!-- Emoji button -->
+        <button class="send-button" onclick="sendMessage()">Send</button> <!-- Send button -->
+    </div>
+    <script>
+        var token = "{{ token }}";
+        var channels = [];
+        var friends = [];
+        var selectedChannel = "";
+        // getChannels()
+        function getChannels() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/channels', true);
+            xhr.setRequestHeader("Authorization", token);
+            xhr.send();
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    channels = response.channels;
+                    friends = response.friends;
+
+                    if (selectedChannel === "") {
+                        selectChannel(channels[0]);
+                    }
+                    var sidebar = document.querySelector('.sidebar');
+                    sidebar.innerHTML = ''; // Clear the sidebar
+
+                    channels.forEach(function(channel) {
+                        var a = document.createElement('a');
+                        a.textContent = "#"+channel;
+                        a.className = 'channel'; // New
+                        a.href = '/#'; // New
+                        a.onclick = function() {
+                            // Handle channel click
+                            selectChannel(channel); // New
+                        };
+                        sidebar.appendChild(a);
+                    });
+
+                    friends.forEach(function(friend) {
+                        var a = document.createElement('a');
+                        a.textContent = "@"+friend.username;
+                        a.className = 'channel'; // New
+                        a.href = '/#'; // New
+                        a.onclick = function() {
+                            selectChannel("@"+friend.username,true); // New
+                        };
+                        sidebar.appendChild(a);
+                    });
+                }
+            };
+        }
+        getChannels();
+        function selectChannel(channel,friend = false) {
+            selectedChannel = channel;
+            var displayChannel = channel;
+            if (friend) {
+                displayChannel = channel;
+            } else {
+                displayChannel = '#' + channel;
+            }
+            document.querySelector('.channel-bar span').textContent = displayChannel;
+            getMessages();
+        }
+        function sendMessage(message) {
+            if (message === undefined) {
+                message = document.querySelector('.message-input').value;
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/channels/'+selectedChannel, true);
+            xhr.setRequestHeader("Authorization", token);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(JSON.stringify({
+                message: message
+            }));
+
+            // Get response json
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if(response.error) {
+                        alert(response.error);
+                    } else {
+                        document.querySelector('.message-input').value = '';
+                        getMessages();
+                    }
+                }
+            };
+        }
+        function getMessages(channel)
+        {
+            if (channel === undefined) {
+                channel = selectedChannel;
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/channels/'+channel, true);
+            xhr.setRequestHeader("Authorization", token);
+            xhr.send();
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    var messages = JSON.parse(xhr.responseText);
+                    var messagesContainer = document.getElementById("chat-area");
+
+                    if (messages.length == 0) {
+                        messagesContainer.innerHTML = "";
+                        return;
+                    }
+
+                    var isAtBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
+                    messagesContainer.innerHTML = "";
+
+                    // Add each message to the messages container
+                    messages.forEach(function (message) {
+                        console.log(message.username);
+                        var messageElement = document.createElement("div");
+                        messageElement.classList.add("message");
+
+                        var profilePictureElement = document.createElement("img"); // Create the profile picture element
+                        profilePictureElement.classList.add("profile-picture");
+                        profilePictureElement.src = message.profileUrl; // Set the source of the profile picture
+
+                        // Add CSS styles to make the picture a small circle
+                        profilePictureElement.style.width = "40px";
+                        profilePictureElement.style.height = "40px";
+                        profilePictureElement.style.borderRadius = "50%";
+
+                        var usernameElement = document.createElement("div");
+                        usernameElement.classList.add("username");
+                        usernameElement.innerHTML = `<a href="/users/${message.username}" style="color: lightblue;"> ${message.username}</a><span style="color: lightgray;"> | ${message.timestamp}</span>`;
+
+                        var replyButton = document.createElement("button"); // Create the edit button
+                        replyButton.classList.add("reply-button")
+                        replyButton.textContent = "Reply";
+                        replyButton.addEventListener("click", function () {
+                            document.getElementById("msg-input").value = "\"" + message.message + "\" ";
+                        });
+                        usernameElement.appendChild(replyButton); // Add the edit button to the username element
+
+                        if (message.editable)
+                        {
+                            var editButton = document.createElement("button"); // Create the edit button
+                            editButton.classList.add("edit-button")
+                            editButton.textContent = "Edit";
+                            editButton.addEventListener("click", function () {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open('PATCH', '/channels/'+channel, true);
+                                xhr.setRequestHeader("Authorization", token);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.send(JSON.stringify({
+                                    uuid: message.uuid,
+                                    message: prompt("Edit the message: ")
+                                }));
+
+                                // Get response json
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        var response = JSON.parse(xhr.responseText);
+                                        if(response.error) {
+                                            alert(response.error);
+                                        } else {
+                                            getMessages();
+                                        }
+                                    }
+                                };
+                            });
+                            usernameElement.appendChild(editButton); // Add the edit button to the username element
+                        }
+                        if (message.deletable)
+                        {
+                            var deleteButton = document.createElement("button"); // Create the delete button
+                            deleteButton.classList.add("delete-button")
+                            deleteButton.textContent = "Delete";
+                            
+                            deleteButton.addEventListener("click", function () {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open('DELETE', '/channels/'+channel, true);
+                                xhr.setRequestHeader("Authorization", token);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.send(JSON.stringify({
+                                    uuid: message.uuid
+                                }));
+
+                                // Get response json
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        var response = JSON.parse(xhr.responseText);
+                                        if(response.error) {
+                                            alert(response.error);
+                                        } else {
+                                            getMessages();
+                                        }
+                                    }
+                                };
+                            });
+                            usernameElement.appendChild(deleteButton); // Add the delete button to the username element
+                        }
+
+                        var contentElement = document.createElement("div");
+                        contentElement.classList.add("content");
+                        if (message.edited == false) {
+                            contentElement.textContent = " " + message.message;
+                        } else {
+                            contentElement.textContent = " " + message.message + " (edited)";
+                        }
+                        messageElement.appendChild(profilePictureElement); // Add the profile picture to the message element
+                        messageElement.appendChild(usernameElement); // Add the username element to the message element
+                        usernameElement.appendChild(contentElement); // Add the content element to the message element
+                        messagesContainer.appendChild(messageElement);
+                    });
+
+                    // Scroll down to the new bottom if already at the bottom
+                    if (isAtBottom) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else {
+                    // Display an error message to the user
+                    console.log("Failed to get messages. Please try again later.");
+                }
+            };
+        }
+        getMessages();
+
+        setInterval(getMessages, 1000);
+        setInterval(getChannels, 5000);
+    </script>
+</body>
+</html>
