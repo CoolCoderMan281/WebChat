@@ -1,6 +1,7 @@
 import os, json, datetime, atexit, secrets, uuid, time
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
+import requests
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('AUTH_KEY')
