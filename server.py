@@ -16,6 +16,7 @@ defaultprofilepicture = "https://awesnap.dev/default_profile_picture.jpg"
 messages = []
 channels = []
 users = {}
+sessions = []
 
 # Data handling functions
 def save_data():
@@ -149,6 +150,7 @@ def login():
         if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
+            sessions.append({"username":username,"token":session['token']})
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="Invalid username or password")
@@ -175,6 +177,7 @@ def signup():
             print("User created!")
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
+            sessions.append({"username":username,"token":session['token']})
             return redirect(url_for('index'))
     elif request.method == 'GET':
         return render_template('signup.html')
@@ -184,6 +187,9 @@ def signup():
 def logout():
     global users, messages, channels
     print(f"User {session['username']} logged out")
+    for sess in sessions:
+        if sess['username'] == session['username']:
+            sessions.remove(sess)
     session.pop('username', None)
     session.pop('token', None)
     return redirect(url_for('login'))
@@ -321,7 +327,7 @@ def getUser(username):
 def preprocessing():
     global users, messages, channels
     # Urls without ANY pre-load authentication
-    whitelist = ['/','/login','/signup','/logout','/favicon.ico','/debug','/default_profile_picture.jpg']
+    whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg']
 
     if request.path in whitelist:
         print("Bypassed preprocessing")
@@ -333,15 +339,21 @@ def preprocessing():
             print("Bypassed preprocessing")
             return
 
-    # Check if user is logged in
-    token = request.headers.get('Authorization')
-
-    if 'username' in session and session['token'] == token:
+    if authcheck(session):
         print(f"User {session['username']} went to {request.path}")
         return
     else:
         print("Not logged in redirecting to login page")
         return redirect(url_for('login'))
+
+def authcheck(session):
+    global sessions
+    if session == {}:
+        return False
+    for sess in sessions:
+        if sess['username'] == session["username"] and sess['token'] == session["token"]:
+            return True
+    return False
 
 if __name__ == '__main__':
     load_data()
