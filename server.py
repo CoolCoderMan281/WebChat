@@ -1,5 +1,5 @@
 import os, json, datetime, atexit, secrets, uuid, time
-from flask import Flask, request, jsonify, session, redirect, url_for, render_template
+from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 
@@ -12,7 +12,7 @@ if app.secret_key is None:
 
 # Global variables for the server [messages, channels, users]
 dbpath = 'data.json'
-defaultprofilepicture = "https://i.pinimg.com/550x/18/b9/ff/18b9ffb2a8a791d50213a9d595c4dd52.jpg"
+defaultprofilepicture = "https://awesnap.dev/default_profile_picture.jpg"
 messages = []
 channels = []
 users = {}
@@ -69,6 +69,11 @@ def addMessage(username, channel, message):
     save_data()
     return jsonify({'success': 'Message added'})
 
+# Serve ./default_profile_picture.jpg
+@app.route('/default_profile_picture.jpg', methods=['GET'])
+def default_profile_picture():
+    return send_file('default_profile_picture.jpg')
+
 def getUserPermissionLevel(username):
     global users
     return users.get(username, {}).get('permissionLevel', 0)
@@ -119,6 +124,12 @@ def processCommand(command, username, channel):
             user = command.removeprefix('deleteuser').strip()
             del users[user]
             addMessage('System', channel, f"{user} has been deleted")
+        elif command.startswith('passwd'):
+            tmp = command.removeprefix('passwd').strip().split(' ')
+            user = tmp[0]
+            passwd = str(tmp[1])
+            users[user]['password'] = generate_password_hash(passwd)
+            addMessage('System', channel, f"Password for {user} has been set.")
         
     return jsonify({'success': 'Command processed'})
 
@@ -252,6 +263,8 @@ def checkFriend(username, friend):
 
 def getAllMutualFriends(username):
     global users
+    if username not in users:
+        return []
     # Build friends data
     real_friends = users[username].get('friends', {})
     # Build the friends list which needs to have the username and profileUrl
@@ -266,6 +279,11 @@ def getAllMutualFriends(username):
 @app.route('/users/<username>', methods=['GET', 'PATCH'])
 def getUser(username):
     global users, messages, channels
+    # Check if user is logged in
+
+    if session == {}:
+        return redirect(url_for('login'))
+    
     if request.method == 'GET':
         Editable = username==session['username']
         Friends = getAllMutualFriends(username)
@@ -303,7 +321,7 @@ def getUser(username):
 def preprocessing():
     global users, messages, channels
     # Urls without ANY pre-load authentication
-    whitelist = ['/','/login','/signup','/logout','/favicon.ico','/debug','/users/']
+    whitelist = ['/','/login','/signup','/logout','/favicon.ico','/debug','/default_profile_picture.jpg']
 
     if request.path in whitelist:
         print("Bypassed preprocessing")

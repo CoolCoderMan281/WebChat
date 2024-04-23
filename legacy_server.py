@@ -55,7 +55,7 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
+
         if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_hex(16)  # Generate a unique session token

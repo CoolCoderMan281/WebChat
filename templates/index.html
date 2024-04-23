@@ -150,7 +150,7 @@
     <div class="message-box">
         <div class="profile">
             <img src="{{ profileUrl }}" alt="Profile Picture"> <!-- Profile picture -->
-            <span>{{ username }}</span> <!-- Username -->
+            <span><p><a href="/users/{{ username }}" style="color: white;">{{ username }}</a></p></span> <!-- Username -->
         </div>
         <input type="text" id="msg-input" class="message-input" placeholder="Type a message..."
             onkeydown="if(event.keyCode === 13) sendMessage()" style="flex-grow: 1; box-sizing: border-box; background-color: #333; color: #fff; border: none; padding: 10px;"> <!-- Message input box -->
