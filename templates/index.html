@@ -255,6 +255,12 @@
 
             xhr.onload = function () {
                 if (xhr.status === 200) {
+                    // Check if trying to redirect to /login
+                    if (xhr.responseURL.includes("/login")) {
+                        window.location.href = "/login";
+                        return;
+                    }
+
                     var messages = JSON.parse(xhr.responseText);
                     var messagesContainer = document.getElementById("chat-area");
 

@@ -17,6 +17,7 @@ messages = []
 channels = []
 users = {}
 sessions = []
+session_timeout = 1800 # 60 * (minutes)
 
 # Data handling functions
 def save_data():
@@ -131,6 +132,10 @@ def processCommand(command, username, channel):
             passwd = str(tmp[1])
             users[user]['password'] = generate_password_hash(passwd)
             addMessage('System', channel, f"Password for {user} has been set.")
+        elif command.startswith('deauth'):
+            tmp = command.removeprefix('deauth').strip()
+            rmauth(tmp)
+            addMessage('System', channel, f"{tmp} has been deauthenticated.")
         
     return jsonify({'success': 'Command processed'})
 
@@ -150,7 +155,7 @@ def login():
         if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
-            sessions.append({"username":username,"token":session['token']})
+            genauth(username,session['token'])
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="Invalid username or password")
@@ -177,7 +182,7 @@ def signup():
             print("User created!")
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
-            sessions.append({"username":username,"token":session['token']})
+            genauth(username,session['token'])
             return redirect(url_for('index'))
     elif request.method == 'GET':
         return render_template('signup.html')
@@ -348,12 +353,37 @@ def preprocessing():
 
 def authcheck(session):
     global sessions
+    
+    # Session does not exist
     if session == {}:
         return False
+    
+    # Find creation time of session
+    creation = time.time()
+    for sess in sessions:
+        if sess['username'] == session["username"] and sess['token'] == session["token"]:
+            creation = sess['creation']
+    # Session is expired (20 seconds) 
+    if time.time() - creation > session_timeout:
+        rmauth(session['username'])
+        return False
+
+    # Session is not valid
     for sess in sessions:
         if sess['username'] == session["username"] and sess['token'] == session["token"]:
             return True
     return False
+
+def rmauth(username):
+    for sess in sessions:
+        if sess['username'] == username:
+            print(f"Deauthing {username}, token: {session['token']} is now useless")
+            sessions.remove(sess)
+
+def genauth(username,token):
+    global sessions
+    sessions.append({"username":username,"token":token,"creation":time.time()})
+    print(f"User {username} authenticated with {token}")
 
 if __name__ == '__main__':
     load_data()
