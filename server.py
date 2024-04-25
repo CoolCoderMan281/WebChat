@@ -76,6 +76,11 @@ def addMessage(username, channel, message):
 def default_profile_picture():
     return send_file('default_profile_picture.jpg')
 
+# Serve EmojiPicker.js
+@app.route('/EmojiPicker.js', methods=['GET'])
+def EmojiPicker():
+    return send_file('EmojiPicker.js')
+
 def getUserPermissionLevel(username):
     global users
     return users.get(username, {}).get('permissionLevel', 0)
@@ -91,24 +96,24 @@ def processCommand(command, username, channel):
                 return {'error': 'Channel already exists'}
             channels.append(tmpchannel)
             addMessage('System', channel, f"Channel {tmpchannel} created")
-            return jsonify({'success': 'Channel created'})
+            return jsonify({'error': 'Channel created'})
         elif command.startswith('deletechannel'):
             tmpchannel = command.removeprefix('deletechannel').strip()
             if tmpchannel not in channels:
                 return {'error': 'Channel does not exist'}
             channels.remove(tmpchannel)
             addMessage('System', channel, f"Channel {tmpchannel} deleted")
-            return jsonify({'success': 'Channel deleted'})
+            return jsonify({'error': 'Channel deleted'})
         elif command.startswith('clearchannel'):
             tmpchannel = command.removeprefix('clearchannel').strip()
             if tmpchannel not in channels:
                 return {'error': 'Channel does not exist'}
             messages = [msg for msg in messages if msg['channel'] != tmpchannel]
             addMessage('System', channel, f"Channel {tmpchannel} cleared")
-            return jsonify({'success': 'Channel cleared'})
+            return jsonify({'error': 'Channel cleared'})
         elif command.startswith('whereami'):
             addMessage('System', channel, f"You are in {channel}")
-            return jsonify({'success': f'You are in {channel}'})
+            return jsonify({'error': f'You are in {channel}'})
 
     if permissionLevel >= 4:
         if command.startswith('sudo'):
@@ -122,20 +127,24 @@ def processCommand(command, username, channel):
                 return {'error': 'Permission level cannot be higher than 3'}
             users[user]['permissionLevel'] = number
             addMessage('System', channel, f"Permission level of {user} changed to {number}")
+            return jsonify({'error': f'Permission level of {user} changed to {number}'})
         elif command.startswith('deleteuser'):
             user = command.removeprefix('deleteuser').strip()
             del users[user]
             addMessage('System', channel, f"{user} has been deleted")
+            return jsonify({'error': f'{user} has been deleted'})
         elif command.startswith('passwd'):
             tmp = command.removeprefix('passwd').strip().split(' ')
             user = tmp[0]
             passwd = str(tmp[1])
             users[user]['password'] = generate_password_hash(passwd)
             addMessage('System', channel, f"Password for {user} has been set.")
+            return jsonify({'error': f'Password for {user} has been set.'})
         elif command.startswith('deauth'):
             tmp = command.removeprefix('deauth').strip()
             rmauth(tmp)
             addMessage('System', channel, f"{tmp} has been deauthenticated.")
+            return jsonify({'error': f'{tmp} has been deauthenticated.'})
         
     return jsonify({'success': 'Command processed'})
 
@@ -156,7 +165,7 @@ def login():
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
             genauth(username,session['token'])
-            return redirect(url_for('index'))
+            return redirect(url_for('new_index'))
         else:
             return render_template('login.html', error="Invalid username or password")
     elif request.method == 'GET':
@@ -205,15 +214,21 @@ def index():
     global users, messages, channels
     if 'username' in session:
         print(f"User {session['username']} accessed the index page")
+        return render_template('old_index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
+    else:
+        print("A user tried to access the index page without logging in")
+        return redirect(url_for('login'))
+    
+# Main application
+@app.route('/experiments', methods=['GET'])
+def new_index():
+    global users, messages, channels
+    if 'username' in session:
+        print(f"User {session['username']} accessed the index page")
         return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
     else:
         print("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
-
-@app.route('/debug', methods=['GET'])
-def debug():
-    return 500
-    return render_template('debug.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
 
 # /channels
 @app.route('/channels', methods=['GET'])
@@ -335,13 +350,11 @@ def preprocessing():
     whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg']
 
     if request.path in whitelist:
-        print("Bypassed preprocessing")
         return
     
     # Check if url starts with anything in whitelist
     for path in whitelist:
         if request.path.startswith(path):
-            print("Bypassed preprocessing")
             return
 
     if authcheck(session):
@@ -367,11 +380,16 @@ def authcheck(session):
     if time.time() - creation > session_timeout:
         rmauth(session['username'])
         return False
+    else: # Refresh session
+        for sess in sessions:
+            if sess['username'] == session["username"] and sess['token'] == session["token"]:
+                sess['creation'] = time.time()
 
     # Session is not valid
     for sess in sessions:
         if sess['username'] == session["username"] and sess['token'] == session["token"]:
             return True
+    print(f"{session['username']} used invalid token {session['token']}")
     return False
 
 def rmauth(username):
