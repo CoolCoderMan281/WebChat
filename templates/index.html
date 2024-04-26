@@ -11,7 +11,18 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            overflow: hidden; /* Add this line */
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            0% { transform: translateY(20px); }
+            100% { transform: translateY(0); }
         }
 
         #sidebar {
@@ -19,6 +30,12 @@
             height: 100%;
             position: relative;
             border-right: 1px solid #000;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(0); }
         }
 
         #channels {
@@ -30,49 +47,58 @@
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 5vh; /* Set the height to 5vh */
-            border-top: 1px solid #000; /* Add a border to the top of the div */
-            display: flex; /* Use flexbox */
-            align-items: center; /* Center items vertically */
-            padding: 0 10px; /* Add some padding on the left and right */
+            height: 5vh;
+            border-top: 1px solid #000;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        #profile-badge.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         #profile-picture {
-            width: 4vh; /* Set the width */
-            height: 4vh; /* Set the height */
-            border-radius: 50%; /* Make the image rounded */
-            margin-right: 10px; /* Add some margin on the right */
+            width: 4vh;
+            height: 4vh;
+            border-radius: 50%;
+            margin-right: 10px;
         }
 
         #user-name {
-            /* Other styles */
-            overflow: hidden; /* Hide overflowed content */
-            text-overflow: ellipsis; /* Indicate overflowed content with an ellipsis */
-            white-space: nowrap; /* Prevent the text from wrapping to a new line */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         #main {
-            width: calc(100% - 10vw); /* Full width of the viewport minus the width of the sidebar */
+            width: calc(100% - 10vw);
             height: 100%;
             display: flex;
             flex-direction: column;
         }
 
         #top-banner {
-            height: 2.5vh; /* 2.5% of the viewport height */
+            height: 2.5vh;
             border-bottom: 1px solid #000;
-            display: flex; /* Use flexbox */
-            align-items: center; /* Center items vertically */
-            justify-content: center; /* Center items horizontally */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #messages {
-            height: calc(100% - 2.5vh - 5vh); /* Full height of the #main div minus the heights of the #top-banner and #message-input divs */
+            height: calc(100% - 2.5vh - 5vh);
             overflow-y: auto;
+            scroll-behavior: smooth;
         }
 
+        /* .message {
+            animation: slideUp 0.5s ease-out, fadeIn 0.5s ease-out;
+        } */
+
         #message-input {
-            height: 5vh; /* Set the height to 5vh */
+            height: 5vh;
             border-top: 0px solid #000;
             display: flex;
             align-items: center;
@@ -81,29 +107,187 @@
         }
 
         #emoji-button {
-            width: 5vh; /* Same as the height of #message-input */
-            height: 5vh; /* Same as the height of #message-input */
-            position: absolute; /* This will position the button relative to #message-input */
-            right: 0; /* This will anchor the button to the right edge of #message-input */
+            width: 5vh;
+            height: 5vh;
+            position: absolute;
+            right: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%; /* Make the button rounded */
+            border-radius: 50%;
+            animation: rotate 0.5s linear infinite;
         }
 
         #input-field {
-            width: 100%; /* Make the input field take up the full width of #message-input */
+            width: 100%;
             height: 100%;
-            padding-right: 5vh; /* Prevent text from being covered by the emoji button */
-            white-space: pre-wrap; /* Make the text wrap onto the next line */
+            padding-right: 5vh;
+            white-space: pre-wrap;
+        }
+
+        .message {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 5px;
+            padding-top: 5px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .message .profile-picture {
+            margin-right: 10px;
+        }
+
+        .message .time {
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .message .username {
+            font-weight: bold;
+            color: #fff;
+            background-color: transparent;
+        }
+
+        .message .content {
+            color: #000;
+            font-weight: normal;
+            word-wrap: break-word;
+        }
+
+        body.dark-theme .message .content {
+            color: #fff;
+        }
+
+        #menu {
+            position: absolute;
+            bottom: calc(100% + 2vh);
+            right: 0;
+            background-color: #f9f9f9;
+            width: 18vh;
+            box-shadow: 0px -8px 16px 0px rgba(0,0,0,0.2);
+            padding: 1vh;
+            z-index: 1;
+            outline: 0.2vh solid #000000;
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: visibility 0s 0.3s, opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+
+        #menu.visible {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+            transition: visibility 0s, opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+
+        #menu .menu-item {
+            color: black;
+            text-decoration: none;
+            display: block;
+            border-bottom: 1px solid #ddd;
+            padding: 5px 0;
+        }
+
+        body.dark-theme {
+            background-color: #333;
+            color: #fff;
+        }
+
+        body.dark-theme a,
+        body.dark-theme #menu,
+        body.dark-theme #input-field,
+        body.dark-theme .emoji-button {
+            background-color: #555;
+            color: #fff;
+        }
+
+        body.dark-theme #menu a,
+        body.dark-theme #menu .menu-item {
+            border-color: #888;
+            color: #fff;
+        }
+
+        body.dark-theme .username {
+            background-color: transparent;
+        }
+
+        .message-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .edit-button,
+        .reply-button,
+        .delete-button {
+            border-radius: 10px;
+            border: none;
+            color: #000;
+            background-color: #ddd;
+            padding: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        .edit-button:hover,
+        .reply-button:hover,
+        .delete-button:hover {
+            background-color: #888;
+        }
+
+        body.dark-theme .edit-button,
+        body.dark-theme .reply-button,
+        body.dark-theme .delete-button {
+            color: #fff;
+            background-color: #444;
+        }
+
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #1a1a1a; /* Dark background */
+            z-index: 9999;
+            animation: fadeOut 0.5s ease-out 1.5s forwards;
+        }
+
+        #logo {
+            opacity: 1;
+            animation: fadeOut 0.5s ease-out 1.5s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
         }
     </style>
+    <div id="splash-screen">
+        <img id="logo" src="logo.png" alt="Logo">
+    </div>
     <div id="sidebar">
         <div id="channels">
             <!-- Channels will be loaded here -->
             <p>Yo</p>
         </div>
         <div id="profile-badge">
+            <div id="menu">
+                <div class="menu-item">
+                    <label for="theme-toggle">Dark Theme:</label>
+                    <input type="checkbox" id="theme-toggle">
+                </div>
+                <a href="/users/{{username}}" class="menu-item">Your Profile</a>
+            </div>
             <img id="profile-picture" src="{{ profileUrl }}" alt="Profile Picture">
             <span id="user-name">{{ username }}</span>
         </div>
@@ -118,11 +302,19 @@
             <p>What the sigma?</p>
         </div>
         <div id="message-input">
-            <input type="text" id="input-field" placeholder="Type a message...">
-            <button id="emoji-button">😀</button>
+            <input type="text" id="input-field" class="message-input" placeholder="Type a message..." onkeydown="if(event.keyCode === 13) sendMessage()">
+            <button class="emoji-button" id="emoji-button">😀</button>
         </div>
     </div>
     <script>
+        window.addEventListener('load', function() {
+            // Remove the splash screen after 2.5 seconds
+            setTimeout(function() {
+                var splashScreen = document.getElementById('splash-screen');
+                splashScreen.parentNode.removeChild(splashScreen);
+            }, 2500);
+        });
+        // Channels
         var selectedChannel = "";
         var currentChannels = [];
         var currentFriends = [];
@@ -151,7 +343,7 @@
                             const topBanner = document.getElementById('top-banner');
                             topBanner.textContent = "#" + selectedChannel;
                         }
-
+                        
                         // Clear the channels div
                         const channelsDiv = document.getElementById('channels');
                         channelsDiv.innerHTML = '';
@@ -168,6 +360,9 @@
                                 // Update top banner
                                 const topBanner = document.getElementById('top-banner');
                                 topBanner.textContent = "#" + selectedChannel;
+
+                                // Fetch messages immediately after a channel is clicked
+                                fetchMessages();
                             });
 
                             channelsDiv.appendChild(channelElement);
@@ -181,15 +376,16 @@
                             // Add click event listener
                             friendElement.addEventListener('click', () => {
                                 console.log(`Friend ${friend.username} was clicked`);
-                                selectedChannel = friend.username;
+                                selectedChannel = "@"+friend.username;
 
                                 // Update top banner
                                 const topBanner = document.getElementById('top-banner');
-                                topBanner.textContent = "@" + selectedChannel;
+                                topBanner.textContent = selectedChannel;
                             });
 
                             channelsDiv.appendChild(friendElement);
                         });
+                        fetchMessages();
                     }
                 })
                 .catch(error => console.error('Error:', error));
@@ -200,6 +396,276 @@
 
         // Then call it every 5 seconds
         setInterval(fetchChannels, 5000);
+
+        // Get messages
+        // Define the fetch operation in a separate function
+        var messages = [];
+        var lastMessageUUID = null;
+        function fetchMessages() {
+            // Fetch the channels
+            if(selectedChannel == "")
+            {
+                return;
+            }
+            channel = selectedChannel;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/channels/'+channel, true);
+            xhr.send();
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    // Check if trying to redirect to /login
+                    if (xhr.responseURL.includes("/login")) {
+                        window.location.href = "/login";
+                        return;
+                    }
+
+                    var messages = JSON.parse(xhr.responseText);
+                    var messagesContainer = document.getElementById("messages");
+
+                    if (messages.length == 0) {
+                        messagesContainer.innerHTML = "";
+                        return;
+                    }
+
+                    var isAtBottom = messagesContainer.scrollHeight - messagesContainer.clientHeight <= messagesContainer.scrollTop + 1;
+                    messagesContainer.innerHTML = "";
+
+                    // Add each message to the messages container
+                    messages.forEach(function (message) {
+                        var messageElement = document.createElement("div");
+                        messageElement.classList.add("message", "show");
+
+                        var profilePictureElement = document.createElement("img"); // Create the profile picture element
+                        profilePictureElement.classList.add("profile-picture");
+                        profilePictureElement.src = message.profileUrl; // Set the source of the profile picture
+
+                        // Add CSS styles to make the picture a small circle
+                        profilePictureElement.style.width = "40px";
+                        profilePictureElement.style.height = "40px";
+                        profilePictureElement.style.borderRadius = "50%";
+
+                        var usernameElement = document.createElement("div");
+                        usernameElement.classList.add("username");
+                        usernameElement.innerHTML = `<a href="/users/${message.username}" style="color: lightblue;"> ${message.username}</a><span style="color: lightgray;"> | ${message.timestamp}</span>`;
+
+                        var replyButton = document.createElement("button"); // Create the edit button
+                        replyButton.classList.add("reply-button")
+                        replyButton.textContent = "Reply";
+                        replyButton.addEventListener("click", function () {
+                            document.getElementById("input-field").value = "\"" + message.message + "\" ";
+                        });
+                        usernameElement.appendChild(replyButton); // Add the edit button to the username element
+
+                        if (message.editable)
+                        {
+                            var editButton = document.createElement("button"); // Create the edit button
+                            editButton.classList.add("edit-button")
+                            editButton.textContent = "Edit";
+                            editButton.addEventListener("click", function () {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open('PATCH', '/channels/'+selectedChannel, true);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.send(JSON.stringify({
+                                    uuid: message.uuid,
+                                    message: prompt("Edit the message: ")
+                                }));
+
+                                // Get response json
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        var response = JSON.parse(xhr.responseText);
+                                        if(response.error) {
+                                            alert(response.error);
+                                        } else {
+                                            fetchMessages();
+                                        }
+                                    }
+                                };
+                            });
+                            usernameElement.appendChild(editButton); // Add the edit button to the username element
+                        }
+                        if (message.deletable)
+                        {
+                            var deleteButton = document.createElement("button"); // Create the delete button
+                            deleteButton.classList.add("delete-button")
+                            deleteButton.textContent = "Delete";
+                            
+                            deleteButton.addEventListener("click", function () {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open('DELETE', '/channels/'+selectedChannel, true);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.send(JSON.stringify({
+                                    uuid: message.uuid
+                                }));
+
+                                // Get response json
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        var response = JSON.parse(xhr.responseText);
+                                        if(response.error) {
+                                            alert(response.error);
+                                        } else {
+                                            fetchMessages();
+                                        }
+                                    }
+                                };
+                            });
+                            usernameElement.appendChild(deleteButton); // Add the delete button to the username element
+                        }
+
+                        var contentElement = document.createElement("div");
+                        contentElement.classList.add("content");
+                        if (message.edited == false) {
+                            contentElement.textContent = " " + message.message;
+                        } else {
+                            contentElement.textContent = " " + message.message + " (edited)";
+                        }
+                        messageElement.appendChild(profilePictureElement); // Add the profile picture to the message element
+                        messageElement.appendChild(usernameElement); // Add the username element to the message element
+                        usernameElement.appendChild(contentElement); // Add the content element to the message element
+                        messagesContainer.appendChild(messageElement);
+                    });
+
+                    // Get the last message
+                    var lastMessage = messages[messages.length - 1];
+
+                    // Only animate the message if it's a new message
+                    if (lastMessage.uuid != lastMessageUUID) {
+                        var lastMessageElement = messagesContainer.lastChild;
+                        lastMessageElement.style.marginBottom = '-100px';
+                        lastMessageElement.style.opacity = '0';
+                        lastMessageElement.style.transition = 'margin-bottom 0.5s ease-out, opacity 0.5s ease-out';
+                        setTimeout(function() {
+                            lastMessageElement.style.marginBottom = '0';
+                            lastMessageElement.style.opacity = '1';
+                        }, 0);
+                    }
+
+                    console.log(lastMessage.uuid + " | "+lastMessageUUID+" > "+(lastMessage.uuid !== lastMessageUUID))
+
+                    // Update the lastMessageUUID after the forEach loop
+                    lastMessageUUID = lastMessage.uuid;
+                    // Scroll down to the new bottom if already at the bottom
+                    if (isAtBottom) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else {
+                    // Display an error message to the user
+                    console.log("Failed to get messages. Please try again later.");
+                }
+            };
+        }
+        // Call the function once when the page loads
+        fetchMessages();
+
+        // Then call it every 5 seconds
+        setInterval(fetchMessages, 1000);
+
+        // Send messages
+        function sendMessage(message) {
+            if (message === undefined) {
+                message = document.querySelector('.message-input').value;
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/channels/'+selectedChannel, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(JSON.stringify({
+                message: message
+            }));
+
+            // Get response json
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if(response.error) {
+                        alert(response.error);
+                    } else {
+                        document.querySelector('.message-input').value = '';
+                        fetchMessages();
+                    }
+                }
+            };
+        }
+
+        // document.getElementById('emoji-button').addEventListener('mouseup', function() {
+        //     this.classList.remove('active');
+        // });
+
+        // Get the menu and profile badge elements
+        var menu = document.getElementById('menu');
+        var profileBadge = document.getElementById('profile-badge');
+
+        // Add event listener to the profile badge to toggle the menu
+        profileBadge.addEventListener('click', function(event) {
+            if (menu.classList.contains('visible')) {
+                menu.classList.remove('visible');
+            } else {
+                menu.classList.add('visible');
+            }
+            event.stopPropagation(); // Prevent the event from bubbling up to the document
+        });
+
+        // Add event listener to the document to hide the menu when clicking outside of it
+        document.addEventListener('click', function() {
+            menu.classList.remove('visible');
+        });
+
+        const themeToggle = document.getElementById('theme-toggle');
+        // Fetch the theme from the server when the page loads
+        fetch(`/users/{{username}}/theme`)
+            .then(response => response.json())
+            .then(data => {
+                // Check the theme variable and set the theme
+                if (data.theme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                    themeToggle.checked = true;
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    themeToggle.checked = false;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+        // Update the theme on the server when the theme is changed
+        document.getElementById('theme-toggle').addEventListener('change', function() {
+            if (this.checked) {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+            var theme = this.checked ? 'dark' : 'light';
+            fetch(`/users/{{username}}/theme`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ theme: theme })
+            }).then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            }).then(function(data) {
+                console.log('Theme preference saved:', data);
+            }).catch(function(error) {
+                console.error('There has been a problem with your fetch operation:', error);
+            });
+        });
+    </script>
+    <script src="EmojiPicker.js"></script>
+    <script>
+
+        new EmojiPicker({
+            trigger: [
+            {
+                selector: '.emoji-button',
+                insertInto: ['.message-input'] // '.selector' can be used without array
+            }
+            ],
+            closeButton: true,
+            //specialButtons: green
+        });
+
     </script>
 </body>
 </html>

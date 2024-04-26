@@ -81,6 +81,11 @@ def default_profile_picture():
 def EmojiPicker():
     return send_file('EmojiPicker.js')
 
+# Serve logo.png
+@app.route('/logo.png', methods=['GET'])
+def logo():
+    return send_file('logo.png')
+
 def getUserPermissionLevel(username):
     global users
     return users.get(username, {}).get('permissionLevel', 0)
@@ -164,8 +169,9 @@ def login():
         if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
+            session['theme'] = users[username].get('theme', 'light')
             genauth(username,session['token'])
-            return redirect(url_for('new_index'))
+            return redirect(url_for('v3_index'))
         else:
             return render_template('login.html', error="Invalid username or password")
     elif request.method == 'GET':
@@ -191,6 +197,7 @@ def signup():
             print("User created!")
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
+            session['theme'] = 'light'
             genauth(username,session['token'])
             return redirect(url_for('index'))
     elif request.method == 'GET':
@@ -209,8 +216,8 @@ def logout():
     return redirect(url_for('login'))
 
 # Main application
-@app.route('/', methods=['GET'])
-def index():
+@app.route('/v2ui', methods=['GET'])
+def v2_index():
     global users, messages, channels
     if 'username' in session:
         print(f"User {session['username']} accessed the index page")
@@ -220,12 +227,12 @@ def index():
         return redirect(url_for('login'))
     
 # Main application
-@app.route('/experiments', methods=['GET'])
-def new_index():
+@app.route('/', methods=['GET'])
+def v3_index():
     global users, messages, channels
     if 'username' in session:
         print(f"User {session['username']} accessed the index page")
-        return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
+        return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),theme=session['theme'])
     else:
         print("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
@@ -251,6 +258,10 @@ def getMessages(channel):
             channels.append(channel)
     if request.method == 'GET':
         n_messages = [msg for msg in messages if msg['channel'] == channel]
+
+        # Limit the number of messages to 25
+        n_messages = n_messages[-25:]
+
         for msg in n_messages:
             msg['profileUrl'] = getProfilePicture(msg['username'])
             if msg['username'] == session['username']:
@@ -261,6 +272,20 @@ def getMessages(channel):
                 msg['deletable'] = False
             if getUserPermissionLevel(session['username']) >= 1:
                 msg['deletable'] = True
+
+        # If the number of messages is less than or equal to 25, add a message at the beginning
+        if len(n_messages) == 25:
+            end_message = {
+                'username': 'System',
+                'message': 'To reduce load times, this is the end of your visible message history!',
+                'timestamp': "",
+                'profileUrl': defaultprofilepicture,
+                'channel': channel,
+                'editable': False,
+                'deletable': False
+            }
+            n_messages.insert(0, end_message)
+
         return jsonify(n_messages)
     elif request.method == 'POST':
         message = request.json.get('message', '')
@@ -340,14 +365,29 @@ def getUser(username):
             users[username]['about'] = about
             profileUrl = request.json.get('profileUrl', defaultprofilepicture)
             users[username]['profileUrl'] = profileUrl
+            theme = request.json.get('theme', 'light')  # Get the theme from the request
+            users[username]['theme'] = theme  # Save the theme to the user
+            session['theme'] = theme
             return jsonify({'success': 'Profile updated'})
+    return jsonify({'error': 'Server error'},500)
+
+# /users/<username>/theme
+@app.route('/users/<username>/theme', methods=['GET', 'PATCH'])
+def getTheme(username):
+    global users, messages, channels
+    if request.method == 'GET':
+        return jsonify({'theme': users.get(username, {}).get('theme', 'light')})
+    elif request.method == 'PATCH':
+        theme = request.json.get('theme', 'light')
+        users[username]['theme'] = theme
+        return jsonify({'success': 'Theme updated'})
     return jsonify({'error': 'Server error'},500)
 
 @app.before_request
 def preprocessing():
     global users, messages, channels
     # Urls without ANY pre-load authentication
-    whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg']
+    whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg','/logo.png']
 
     if request.path in whitelist:
         return
@@ -389,7 +429,10 @@ def authcheck(session):
     for sess in sessions:
         if sess['username'] == session["username"] and sess['token'] == session["token"]:
             return True
-    print(f"{session['username']} used invalid token {session['token']}")
+    try:
+        print(f"{session['username']} used invalid token {session['token']}")
+    except:
+        print(f"Unknown user used an invalid token!")
     return False
 
 def rmauth(username):

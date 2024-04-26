@@ -7,57 +7,94 @@
             background-color: #1a1a1a;
             color: #ffffff;
             font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
         }
         form {
-            margin: 0 auto;
-            width: 300px;
+            width: 350px;
             padding: 20px;
             background-color: #333333;
             border-radius: 5px;
+            box-shadow: 0px 0px 10px 3px rgba(0,0,0,0.5);
+            animation: slide-up 0.5s ease;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], input[type="submit"] {
             width: 100%;
             padding: 10px;
+            box-sizing: border-box;
             margin-bottom: 10px;
             border: none;
             border-radius: 3px;
+            background-color: #4d4d4d;
+            color: #fff;
         }
         input[type="submit"] {
-            width: 100%;
-            padding: 10px;
             background-color: #4CAF50;
-            color: #ffffff;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        @keyframes slide-up {
+            0% {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        #logo {
+            width: 100px;
+            margin-bottom: 20px;
+            animation: fly-in 0.5s ease;
+        }
+        @keyframes fly-in {
+            0% {
+                transform: translateY(-200%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        #errorMessage {
+            color: red;
+            text-align: center;
+            max-height: 100px;
+            overflow: hidden;
+            transition: opacity 1s, max-height 1s;
         }
     </style>
 </head>
 <body>
+    <img id="logo" src="/logo.png" alt="Logo">
     <form method="post">
         <p><input type="text" name="username" placeholder="Username"></p>
         <p><input type="password" name="password" placeholder="Password"></p>
         <p><input type="submit" value="Signup"></p>
+        <p style="text-align: center;">Already have an account? <a href="/login">Login</a></p>
     </form>
-    <div style="text-align: center;">
-        <p>Already have an account? <a href="/login">Login</a></p>
-    </div>
     <!-- If {{ error }} is not empty then display it -->
     <script>
         var error = "{{ error }}";
         if (error) {
             // Insert a document element below the signup notice
             var p = document.createElement("p");
-            p.style.color = "red";
+            p.id = "errorMessage";
             p.innerHTML = error;
-            document.querySelector("div").appendChild(p);
+            document.querySelector("form").appendChild(p);
 
             // Fade out the error message after 5 seconds
             setTimeout(function() {
                 p.style.opacity = "0";
-                setTimeout(function() {
-                    p.remove();
-                }, 1000);
+                p.style.maxHeight = "0";
             }, 5000);
         }
     </script>
