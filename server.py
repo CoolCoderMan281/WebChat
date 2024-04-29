@@ -14,15 +14,14 @@ if app.secret_key is None:
 dbpath = 'data.json'
 defaultprofilepicture = "https://awesnap.dev/default_profile_picture.jpg"
 messages = []
-channels = []
+channels = {}
 readOnlyChannels = []
 users = {}
 sessions = []
 session_timeout = 1800 # 60 * (minutes)
 
-# Data handling functions
 def save_data():
-    global users, messages, channels
+    global users, messages, channels, readOnlyChannels
     data = {
         'messages': messages,
         'channels': channels,
@@ -34,31 +33,31 @@ def save_data():
     print(f"Data saved at: {datetime.datetime.now().strftime('%H:%M:%S')}")
 
 def load_data():
-    global users, messages, channels
+    global users, messages, channels, readOnlyChannels
     try:
         with open(dbpath, 'r') as f:
             data = json.load(f)
-        messages = data.get('messages', [])
-        channels = data.get('channels', [])
+        channels = data.get('channels', {})
+        messages = {channel: data['messages'].get(channel, []) for channel in channels}
         users = data.get('users', {})
         readOnlyChannels = data.get('readOnlyChannels', [])
         print(f"Data read at: {datetime.datetime.now().strftime('%H:%M:%S')}")
     except:
         print("Failed to read, returning empty data")
-        messages, channels, users = [], [], {}
+        messages, channels, users = {}, [], {}
 
 def getProfilePicture(username):
     global users
     return users.get(username, {}).get('profileUrl', defaultprofilepicture)
 
 def addMessage(username, channel, message):
-    global messages
+    global messages, readOnlyChannels
     warning:str = ""
     if message == '':
         return jsonify({'error': 'Message cannot be empty'})
     elif len(message) > 500:
         return jsonify({'error': 'Message cannot be longer than 500 characters'})
-    elif channel not in channels:
+    elif channel not in channels and not message.startswith('/'):
         return jsonify({'error': 'Channel does not exist'})
     elif message.startswith('/'):
         return processCommand(message.removeprefix('/'), username, channel)
@@ -69,7 +68,10 @@ def addMessage(username, channel, message):
         else:
             warning = "(BYPASSED) Warning: You are posting in a read-only channel."
             pass
-    messages.append({
+    # Initialize an empty list for the channel if it doesn't exist
+    if channel not in messages:
+        messages[channel] = []
+    messages[channel].append({
         'username': username,
         'channel': channel,
         'profileUrl': getProfilePicture(username),
@@ -112,21 +114,23 @@ def processCommand(command, username, channel):
             tmpchannel = command.removeprefix('createchannel').strip()
             if tmpchannel in channels:
                 return {'error': 'Channel already exists'}
-            channels.append(tmpchannel)
-            addMessage('System', channel, f"Channel {tmpchannel} created")
+            channels[tmpchannel] = {'readOnly': False}  # Create a new channel with 'readOnly' set to False
+            save_data()  # Save the data after updating the channels list
+            addMessage('System', tmpchannel, f"Channel {tmpchannel} created")  # Move this line here
             return jsonify({'error': 'Channel created'})
         elif command.startswith('deletechannel'):
             tmpchannel = command.removeprefix('deletechannel').strip()
             if tmpchannel not in channels:
                 return {'error': 'Channel does not exist'}
-            channels.remove(tmpchannel)
+            del channels[tmpchannel]  # Delete the channel
+            del messages[tmpchannel]  # Delete the messages for the channel
             addMessage('System', channel, f"Channel {tmpchannel} deleted")
             return jsonify({'error': 'Channel deleted'})
         elif command.startswith('clearchannel'):
             tmpchannel = command.removeprefix('clearchannel').strip()
             if tmpchannel not in channels:
                 return {'error': 'Channel does not exist'}
-            messages = [msg for msg in messages if msg['channel'] != tmpchannel]
+            messages[tmpchannel] = []  # Clear the messages for the channel
             addMessage('System', channel, f"Channel {tmpchannel} cleared")
             return jsonify({'error': 'Channel cleared'})
         elif command.startswith('whereami'):
@@ -138,7 +142,7 @@ def processCommand(command, username, channel):
             tmp = command.removeprefix('sudo').strip().split(' ', 1)
             user = tmp[0]
             message = tmp[-1]
-            addMessage(user, channel, message)
+            return addMessage(user, channel, message)
         elif command.startswith('perm'):
             tmp = command.removeprefix('perm').strip().split(' ')
             user = tmp[0]
@@ -344,8 +348,8 @@ def v2_index():
 # Main application
 @app.route('/', methods=['GET'])
 def v3_index():
-    global users, messages, channels
-    if 'username' in session:
+    global users, messages, channels, commands
+    if authcheck(session):
         print(f"User {session['username']} accessed the index page")
         return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),theme=session['theme'])
     else:
@@ -357,12 +361,11 @@ def v3_index():
 def getChannels():
     global users, messages, channels
     if request.method == 'GET': 
-        channels = list(channels)
+        local_channels = list(channels)
         # remove channels that start with 'FPM-%'
-        channels = [channel for channel in channels if not channel.startswith('FPM-')]
-        return jsonify({'channels': channels, 'friends': getAllMutualFriends(session['username'])})
+        local_channels = [channel for channel in channels if not channel.startswith('FPM-')]
+        return jsonify({'channels': local_channels, 'friends': getAllMutualFriends(session['username'])})
     
-# /channels/<channel>
 @app.route('/channels/<channel>', methods=['GET', 'POST', 'PATCH', 'DELETE'])
 def getMessages(channel):
     global users, messages, channels
@@ -370,12 +373,13 @@ def getMessages(channel):
         puser = channel.removeprefix('@')
         channel = getUUIDpm(session['username'], puser)
         if channel not in channels:
-            channels.append(channel)
+            channels[channel] = {'readOnly': False}
+            messages[channel] = []  # Initialize an empty list for the new channel
     if request.method == 'GET':
-        n_messages = [msg for msg in messages if msg['channel'] == channel]
-
-        # Limit the number of messages to 25
-        n_messages = n_messages[-25:]
+        if channel in messages:
+            n_messages = messages[channel][-25:]  # Get the last 25 messages for the channel
+        else:
+            n_messages = []  # Return an empty list if the channel does not exist
 
         for msg in n_messages:
             msg['profileUrl'] = getProfilePicture(msg['username'])
@@ -408,7 +412,7 @@ def getMessages(channel):
     elif request.method == 'PATCH':
         uuid = request.json.get('uuid', '')
         message = request.json.get('message', '')
-        for msg in messages:
+        for msg in messages[channel]:  # Iterate over the messages for the channel
             if msg['uuid'] == uuid and msg['username'] == session['username']:
                 msg['message'] = message
                 msg['edited'] = True
@@ -416,9 +420,9 @@ def getMessages(channel):
         return jsonify({'error': 'Message not found'})
     elif request.method == 'DELETE':
         uuid = request.json.get('uuid', '')
-        for msg in messages:
+        for msg in messages[channel]:  # Iterate over the messages for the channel
             if msg['uuid'] == uuid and (msg['username'] == session['username'] or getUserPermissionLevel(session['username']) >= 1):
-                messages.remove(msg)
+                messages[channel].remove(msg)  # Remove the message from the list for the channel
                 return jsonify({'success': 'Message deleted'})
         return jsonify({'error': 'Message not found'})
     return jsonify({'error': 'Server error'},500)
@@ -509,6 +513,11 @@ def getTheme(username):
 @app.route('/unavailable', methods=['GET'])
 def unavailable():
     return render_template('unavailable.html',message=f"Resource unavailable")
+
+# Serve favicon.ico
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+    return send_file('favicon.ico')
 
 @app.before_request
 def preprocessing():

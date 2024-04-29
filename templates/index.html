@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Messages</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
     <style>
@@ -446,6 +447,7 @@
             color: #fff; /* White text */
         }
     </style>
+
     <div id="splash-screen">
         <img id="logo" src="logo.png" alt="Logo">
     </div>
@@ -486,6 +488,7 @@
                     <label for="theme-toggle">Dark Theme:</label>
                     <input type="checkbox" id="theme-toggle">
                 </div>
+                <a class="menu-item" onclick='openProfile("{{username}}");'>Your profile</a>
                 <a href="/logout" class="menu-item">Logout</a>
             </div>
             <img id="profile-picture" src="{{ profileUrl }}" alt="Profile Picture">
@@ -518,15 +521,28 @@
         var selectedChannel = "";
         var currentChannels = [];
         var currentFriends = [];
+        var tologin = false;
+        var lastFetchCompleted_channels = true;
+        var lastFetchCompleted_messages = true;
 
         // Define the fetch operation in a separate function
         function fetchChannels() {
             // Fetch the channels
+            if (!lastFetchCompleted_channels)
+            {
+                return;
+            }
+            lastFetchCompleted_channels = false;
             fetch('/channels')
                 .then(response => {
-                    if (!response.ok || response.url.includes("/login")) {
+                    if (!response.ok || response.url.includes("/login") && !tologin) {
+                        tologin = true;
                         window.location.href = "/login";
                         return;
+                    }
+                    if (response.ok)
+                    {
+                        lastFetchCompleted_channels = true;
                     }
                     return response.json();
                 })
@@ -603,16 +619,22 @@
         var lastMessageUUID = null;
         function fetchMessages() {
             // Fetch the channels
+            if (!lastFetchCompleted_messages)
+            {
+                return;
+            }
             if(selectedChannel == "")
             {
                 return;
             }
+            lastFetchCompleted_messages = false;
             channel = selectedChannel;
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/channels/'+channel, true);
             xhr.send();
             xhr.onload = function () {
                 if (xhr.status === 200) {
+                    lastFetchCompleted_messages = true;
                     // Check if trying to redirect to /login
                     if (xhr.responseURL.includes("/login")) {
                         window.location.href = "/login";
@@ -661,6 +683,7 @@
                         replyButton.classList.add("reply-button")
                         replyButton.textContent = "Reply";
                         replyButton.addEventListener("click", function () {
+                            event.stopPropagation();
                             document.getElementById("input-field").value = "\"" + message.message + "\" ";
                         });
                         usernameElement.appendChild(replyButton); // Add the edit button to the username element
@@ -671,6 +694,7 @@
                             editButton.classList.add("edit-button")
                             editButton.textContent = "Edit";
                             editButton.addEventListener("click", function () {
+                                event.stopPropagation();
                                 var xhr = new XMLHttpRequest();
                                 xhr.open('PATCH', '/channels/'+selectedChannel, true);
                                 xhr.setRequestHeader("Content-Type", "application/json");
@@ -700,6 +724,7 @@
                             deleteButton.textContent = "Delete";
                             
                             deleteButton.addEventListener("click", function () {
+                                event.stopPropagation();
                                 var xhr = new XMLHttpRequest();
                                 xhr.open('DELETE', '/channels/'+selectedChannel, true);
                                 xhr.setRequestHeader("Content-Type", "application/json");
@@ -1014,9 +1039,6 @@
                     modal.style.display = "block";
                 });
         }
-
-        // Friends
-        
     </script>
     <script src="EmojiPicker.js"></script>
     <script>
