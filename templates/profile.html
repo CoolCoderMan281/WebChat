@@ -8,7 +8,11 @@
             background-color: #1a1a1a;
             color: #ffffff;
             font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            transition: background-color 2s ease-out;
         }
+
         .profile-picture {
             width: 100px;
             height: 100px;
@@ -16,27 +20,41 @@
             background-color: #ffffff;
             margin-right: 10px;
             float: left;
+            transition: transform 0.5s ease-out;
         }
+
+        .profile-picture:hover {
+            transform: scale(1.1);
+        }
+
         .name {
             font-weight: bold;
+            animation: fadeIn 2s ease-out forwards;
         }
+
         .about-me {
             margin-top: 20px;
             clear: both; /* Add this line to clear the float */
+            animation: fadeIn 2s ease-out 1s forwards;
         }
+
         .permission-level {
             margin-top: 10px;
             font-size: 14px;
             color: #cccccc;
+            animation: fadeIn 2s ease-out 2s forwards;
         }
+
         .editable {
             border: 1px solid #cccccc;
             padding: 10px;
             background-color: #131212;
         }
+
         .save-button {
             display: none;
         }
+
         .return-button {
             position: fixed;
             bottom: 10px;
@@ -46,13 +64,24 @@
             color: #ffffff;
             border: none;
             cursor: pointer;
+            transition: background-color 0.5s ease-out;
         }
+
+        .return-button:hover {
+            background-color: #333;
+        }
+
         .small-circle {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             display: inline-block;
             margin-left: 5px;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
         }
     </style>
 </head>

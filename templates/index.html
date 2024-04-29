@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>What the sigma</title>
+    <title>Messages</title>
 </head>
 <body>
     <style>
@@ -271,9 +271,209 @@
             0% { opacity: 1; }
             100% { opacity: 0; }
         }
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 25vw; /* 25% of the viewport width */
+            height: 80vh; /* 80% of the viewport height */
+            overflow: auto; /* Enable scroll if needed */
+
+            /* Center the modal vertically and horizontally */
+            position: relative;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+            /* Use flexbox to layout the children of .modal-content */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            overflow-x:hidden;
+        }
+
+        .close {
+            color: #aaa;
+
+            /* Position the close button at the top right */
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+        }
+
+        .profile-picture {
+            /* Limit the width to 50% of the parent's width */
+            width: 50%;
+
+            /* Make the height equal to the width */
+            height: auto;
+
+            /* Round the profile picture */
+            border-radius: 50%;
+        }
+
+        .profile {
+            /* Use flexbox to layout the children of .profile */
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .profile-info {
+            /* Use flexbox to layout the children of .profile-info */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-left: 10px;
+        }
+
+        .name {
+            /* Position the username below the profile picture */
+            margin-top: 0;
+        }
+
+        .about-me {
+            /* Position the about me text below the profile */
+            margin-top: 10px;
+            width: 100%;
+            text-align: left; /* Anchor the text to the left */
+        }
+
+        .permission-level {
+            /* Position the permission level below the username */
+            margin-top: 10px;
+        }
+
+        /* Modal content for dark theme */
+        body.dark-theme .modal-content {
+            background-color: #444;
+            color: #fff;
+        }
+
+        /* Close button for dark theme */
+        body.dark-theme .close {
+            color: #fff;
+        }
+
+        body.dark-theme .close:hover,
+        body.dark-theme .close:focus {
+            color: #aaa;
+        }
+
+        .friends-list {
+            /* Align the list to the left */
+            text-align: left;
+            width: 100%;
+            list-style-type: none;
+        }
+
+        .friend {
+            /* Use flexbox to layout the children */
+            display: flex;
+
+            /* Vertically center the children */
+            align-items: center;
+        }
+
+        .friend-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .friend-username {
+            /* Add some space between the image and the text */
+            margin-left: 10px;
+        }
+
+        .button-container {
+            /* Anchor the buttons to the bottom and make them take up 10vh */
+            position: absolute;
+            bottom: 0;
+            height: 10vh;
+            width: 100%;
+            display: flex;
+
+            /* Include the padding and border in the element's width */
+            box-sizing: border-box;
+        }
+
+        .button-container button {
+            /* Split the width evenly between the buttons */
+            flex-grow: 1;
+            flex-basis: 0;
+
+            /* Include the padding and border in the element's width */
+            box-sizing: border-box;
+
+            /* Slightly round the corners */
+            border-radius: 5px;
+
+            /* Style for light theme */
+            background-color: #f0f0f0; /* Light gray */
+            color: #000; /* Black text */
+
+            /* Make the buttons fill the height of the .button-container */
+            height: 100%;
+
+            text-align: center;
+            font-size: 3em;
+        }
+
+        body.dark-theme .button-container button {
+            background-color: #333; /* Dark gray */
+            color: #fff; /* White text */
+        }
     </style>
     <div id="splash-screen">
         <img id="logo" src="logo.png" alt="Logo">
+    </div>
+    <div id="myModal" class="modal">
+        <!-- Modal content -->
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="profile">
+                <img class="profile-picture" src="" alt="Profile Picture">
+                <div class="profile-info">
+                    <h1 class="name"></h1>
+                    <p class="permission-level"></p>
+                </div>
+            </div>
+            <br>
+            <strong style="text-align:left;width:100%">About me:</strong>
+            <div class="about-me">
+                <!-- The rest of the about me content goes here -->
+            </div>
+            <br>
+            <strong style="text-align:left;width:100%">Friends:</strong>
+            <ul class="friends-list">
+                <!-- The list of friends goes here -->
+            </ul>
+            <div class="button-container">
+                <button id="button1" style="display: none;">Save</button>
+            </div>
+        </div>
     </div>
     <div id="sidebar">
         <div id="channels">
@@ -286,7 +486,7 @@
                     <label for="theme-toggle">Dark Theme:</label>
                     <input type="checkbox" id="theme-toggle">
                 </div>
-                <a href="/users/{{username}}" class="menu-item">Your Profile</a>
+                <a href="/logout" class="menu-item">Logout</a>
             </div>
             <img id="profile-picture" src="{{ profileUrl }}" alt="Profile Picture">
             <span id="user-name">{{ username }}</span>
@@ -443,10 +643,19 @@
                         profilePictureElement.style.width = "40px";
                         profilePictureElement.style.height = "40px";
                         profilePictureElement.style.borderRadius = "50%";
+                        profilePictureElement.addEventListener('click', function() {
+                            openProfile(message.username);
+                        });
 
                         var usernameElement = document.createElement("div");
                         usernameElement.classList.add("username");
                         usernameElement.innerHTML = `<a href="/users/${message.username}" style="color: lightblue;"> ${message.username}</a><span style="color: lightgray;"> | ${message.timestamp}</span>`;
+                        usernameElement.addEventListener('click', function(event) {
+                            // Prevent the default action of the link
+                            event.preventDefault();
+
+                            openProfile(message.username);
+                        });
 
                         var replyButton = document.createElement("button"); // Create the edit button
                         replyButton.classList.add("reply-button")
@@ -541,8 +750,6 @@
                         }, 0);
                     }
 
-                    console.log(lastMessage.uuid + " | "+lastMessageUUID+" > "+(lastMessage.uuid !== lastMessageUUID))
-
                     // Update the lastMessageUUID after the forEach loop
                     lastMessageUUID = lastMessage.uuid;
                     // Scroll down to the new bottom if already at the bottom
@@ -579,6 +786,10 @@
                     var response = JSON.parse(xhr.responseText);
                     if(response.error) {
                         alert(response.error);
+                        if(message[0] == "/")
+                        {
+                            document.querySelector('.message-input').value = '';
+                        }
                     } else {
                         document.querySelector('.message-input').value = '';
                         fetchMessages();
@@ -651,6 +862,161 @@
                 console.error('There has been a problem with your fetch operation:', error);
             });
         });
+
+        // Modal
+        // Get the modal
+        var modal = document.getElementById("myModal");
+
+        // Get the close button
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks on the close button, close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Function to open the modal and display the profile information of a user
+        function openProfile(username) {
+            // Fetch the profile information of the user
+            fetch('/users/' + username)
+                .then(response => response.json())
+                .then(data => {
+                    // Update the modal content with the profile information
+                    document.querySelector('.profile-picture').src = data.profileUrl;
+                    document.querySelector('.name').textContent = data.username;
+                    document.querySelector('.about-me').textContent = data.about;
+                    document.querySelector('.permission-level').textContent = "Permission Level: "+data.permissionLevel;
+
+                    // Remove profile picture onclick
+                    document.querySelector('.profile-picture').onclick = null;
+
+                    // Make about me non-editable
+                    document.querySelector('.about-me').setAttribute('contenteditable', 'false');
+
+
+                    // Get the button
+                    var button1 = document.getElementById('button1');
+
+                    if ("{{username}}" != data.username) {
+                        // Update the text
+                        button1.textContent = 'Friend Action'; // Replace 'New Text' with your actual text
+                        console.log(data);
+                        // Check if the user is a friend
+                        if (data.isFriend) {
+                            // Update the text
+                            button1.textContent = 'Remove Friend';
+
+                            // Update the click action to remove friend
+                            button1.onclick = function() {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open("PATCH", "/users/"+username, true);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.onreadystatechange = function() {
+                                    if (xhr.readyState === 4 && xhr.status === 200) {
+                                        openProfile(username);
+                                    }
+                                };
+                                var data = {
+                                    isFriend: false
+                                };
+                                xhr.send(JSON.stringify(data));
+                            };
+                        } else {
+                            // Update the text
+                            button1.textContent = 'Add Friend';
+
+                            // Update the click action to add friend
+                            button1.onclick = function() {
+                                var xhr = new XMLHttpRequest();
+                                xhr.open("PATCH", "/users/"+username, true);
+                                xhr.setRequestHeader("Content-Type", "application/json");
+                                xhr.onreadystatechange = function() {
+                                    if (xhr.readyState === 4 && xhr.status === 200) {
+                                        openProfile(username);
+                                    }
+                                };
+                                var data = {
+                                    isFriend: true
+                                };
+                                xhr.send(JSON.stringify(data));
+                            };
+                        }
+                    } else {
+                        // Update the text
+                        button1.textContent = 'Save'; // Replace 'New Text' with your actual text
+
+                        // Get the "About Me" section
+                        var aboutMe = document.querySelector('.about-me');
+
+                        // Make the "About Me" section editable
+                        aboutMe.setAttribute('contenteditable', 'true');
+
+                        // Get the profile picture
+                        var profilePicture = document.querySelector('.profile-picture');
+
+                        // Prompt the user for a new URL when they click on the profile picture
+                        profilePicture.onclick = function() {
+                            var newUrl = prompt("Enter a new URL:");
+                            if (newUrl === null || newUrl === "") {
+                                // If the user cancels the prompt or enters a blank URL, use a default URL
+                                newUrl = "https://awesnap.dev/default_profile_picture.jpg";
+                            }
+                            // Update the profile picture URL
+                            profilePicture.src = newUrl;
+                        };
+
+                        // Update the click action
+                        button1.onclick = function() {
+                            var xhr = new XMLHttpRequest();
+                            xhr.open("PATCH", "/users/"+username, true);
+                            xhr.setRequestHeader("Content-Type", "application/json");
+                            xhr.onreadystatechange = function() {
+                                if (xhr.readyState === 4 && xhr.status === 200) {
+                                    // If response has a error key display it
+                                    var response = JSON.parse(xhr.responseText);
+                                    if (response.error) {
+                                        alert(response.error);
+                                        return;
+                                    }
+                                    openProfile("{{username}}");
+                                }
+                            };
+                            var data = {
+                                about: aboutMe.innerText, // Use aboutMe instead of aboutMeElement
+                                profileUrl: profilePicture.src // Add this line to include the profile picture URL in the data
+                            };
+                            xhr.send(JSON.stringify(data));
+                        };
+                    }
+                    button1.style.display = 'block';
+
+                    // Get the friends list element
+                    var friendsList = document.querySelector('.friends-list');
+                    friendsList.innerHTML = "";
+
+                    // Fill the friends list
+                    var friends = data.friends;
+                    for (var i = 0; i < friends.length; i++) {
+                        var friend = friends[i];
+                        var friendElement = document.createElement("li");
+                        friendElement.innerHTML = "<div class='friend'><img src='" + friend.profileUrl + "' class='friend-img'>" + "<p class='friend-username'>" + friend.username + "</p></div>";
+                        friendsList.appendChild(friendElement);
+                    }
+
+                    // Display the modal
+                    modal.style.display = "block";
+                });
+        }
+
+        // Friends
+        
     </script>
     <script src="EmojiPicker.js"></script>
     <script>

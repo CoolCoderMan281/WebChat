@@ -15,6 +15,7 @@ dbpath = 'data.json'
 defaultprofilepicture = "https://awesnap.dev/default_profile_picture.jpg"
 messages = []
 channels = []
+readOnlyChannels = []
 users = {}
 sessions = []
 session_timeout = 1800 # 60 * (minutes)
@@ -25,7 +26,8 @@ def save_data():
     data = {
         'messages': messages,
         'channels': channels,
-        'users': users
+        'users': users,
+        'readOnlyChannels': readOnlyChannels,
     }
     with open(dbpath, 'w') as f:
         json.dump(data, f)
@@ -39,6 +41,7 @@ def load_data():
         messages = data.get('messages', [])
         channels = data.get('channels', [])
         users = data.get('users', {})
+        readOnlyChannels = data.get('readOnlyChannels', [])
         print(f"Data read at: {datetime.datetime.now().strftime('%H:%M:%S')}")
     except:
         print("Failed to read, returning empty data")
@@ -50,6 +53,7 @@ def getProfilePicture(username):
 
 def addMessage(username, channel, message):
     global messages
+    warning:str = ""
     if message == '':
         return jsonify({'error': 'Message cannot be empty'})
     elif len(message) > 500:
@@ -58,6 +62,13 @@ def addMessage(username, channel, message):
         return jsonify({'error': 'Channel does not exist'})
     elif message.startswith('/'):
         return processCommand(message.removeprefix('/'), username, channel)
+    # If channel is read only
+    elif channel in readOnlyChannels:
+        if (getUserPermissionLevel(username) < 1):
+            return jsonify({'error': 'Channel is read only'})
+        else:
+            warning = "(BYPASSED) Warning: You are posting in a read-only channel."
+            pass
     messages.append({
         'username': username,
         'channel': channel,
@@ -69,6 +80,8 @@ def addMessage(username, channel, message):
     })
     print(f"#{channel} - {username}: {message}")
     save_data()
+    if warning != "":
+        return jsonify({'error': warning})
     return jsonify({'success': 'Message added'})
 
 # Serve ./default_profile_picture.jpg
@@ -122,34 +135,128 @@ def processCommand(command, username, channel):
 
     if permissionLevel >= 4:
         if command.startswith('sudo'):
-            say = command.removeprefix('sudo').strip()
-            addMessage('System', channel, say)
+            tmp = command.removeprefix('sudo').strip().split(' ', 1)
+            user = tmp[0]
+            message = tmp[-1]
+            addMessage(user, channel, message)
         elif command.startswith('perm'):
             tmp = command.removeprefix('perm').strip().split(' ')
             user = tmp[0]
             number = int(tmp[1])
             if number > 3:
                 return {'error': 'Permission level cannot be higher than 3'}
-            users[user]['permissionLevel'] = number
-            addMessage('System', channel, f"Permission level of {user} changed to {number}")
-            return jsonify({'error': f'Permission level of {user} changed to {number}'})
+            if user in users:
+                users[user]['permissionLevel'] = number
+                addMessage('System', channel, f"Permission level of {user} changed to {number}")
+                return jsonify({'error': f'Permission level of {user} changed to {number}'})
+            else:
+                return jsonify({'error': f"{user} doesn't exist"})
         elif command.startswith('deleteuser'):
             user = command.removeprefix('deleteuser').strip()
-            del users[user]
-            addMessage('System', channel, f"{user} has been deleted")
-            return jsonify({'error': f'{user} has been deleted'})
+            if user in users:
+                del users[user]
+                addMessage('System', channel, f"{user} has been deleted")
+                return jsonify({'error': f'{user} has been deleted'})
+            else:
+                return jsonify({'error': f"{user} doesn't exist"})
         elif command.startswith('passwd'):
             tmp = command.removeprefix('passwd').strip().split(' ')
             user = tmp[0]
             passwd = str(tmp[1])
-            users[user]['password'] = generate_password_hash(passwd)
-            addMessage('System', channel, f"Password for {user} has been set.")
-            return jsonify({'error': f'Password for {user} has been set.'})
+            if user in users:
+                users[user]['password'] = generate_password_hash(passwd)
+                addMessage('System', channel, f"Password for {user} has been set.")
+                return jsonify({'error': f'Password for {user} has been set.'})
+            else:
+                return jsonify({'error': f"{user} doesn't exist"})
         elif command.startswith('deauth'):
             tmp = command.removeprefix('deauth').strip()
-            rmauth(tmp)
-            addMessage('System', channel, f"{tmp} has been deauthenticated.")
-            return jsonify({'error': f'{tmp} has been deauthenticated.'})
+            if tmp in users:
+                rmauth(tmp)
+                addMessage('System', channel, f"{tmp} has been deauthenticated.")
+                return jsonify({'error': f'{tmp} has been deauthenticated.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+        elif command.startswith('ban'):
+            tmp = command.removeprefix('ban').strip()
+
+            # Check if user exists
+            if tmp not in users:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+            
+            # Check if user is banned
+            if users[tmp].get('banned', False):
+                return jsonify({'error': f"{tmp} is already banned."})
+
+            # Can't ban equal or higher permission level
+            if getUserPermissionLevel(tmp) >= getUserPermissionLevel(username):
+                return jsonify({'error': 'Cannot ban a user with the same or higher permission level.'})
+
+            if tmp in users:
+                rmauth(tmp)
+                users[tmp]['banned'] = True
+                addMessage('System', channel, f"{tmp} has been banned.")
+                return jsonify({'error': f'{tmp} has been banned.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+        elif command.startswith('unban'):
+            tmp = command.removeprefix('unban').strip()
+
+            # Check if user exists
+            if tmp not in users:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+            
+            # Check if user is banned
+            if not users[tmp].get('banned', False):
+                return jsonify({'error': f"{tmp} is not banned."})
+
+            # Can't unban equal or higher permission level
+            if getUserPermissionLevel(tmp) >= getUserPermissionLevel(username):
+                return jsonify({'error': 'Cannot unban a user with the same or higher permission level.'})
+            if tmp in users:
+                users[tmp]['banned'] = False
+                addMessage('System', channel, f"{tmp} has been unbanned.")
+                return jsonify({'error': f'{tmp} has been unbanned.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+        elif command.startswith('lock'):
+            tmp = command.removeprefix('lock').strip()
+            if tmp in channels:
+                readOnlyChannels.append(tmp)
+                addMessage('System', channel, f"{tmp} is now read only.")
+                return jsonify({'error': f'{tmp} is now read only.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+        elif command.startswith('unlock'):
+            tmp = command.removeprefix('unlock').strip()
+            if tmp in readOnlyChannels:
+                readOnlyChannels.remove(tmp)
+                addMessage('System', channel, f"{tmp} is now read-write.")
+                return jsonify({'error': f'{tmp} is now read-write.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
+        elif command.startswith('su'):
+            tmp = command.removeprefix('su').strip()
+            if tmp in users:
+                # If the user's permission level isn't higher or equal to the current user's permission level
+                if getUserPermissionLevel(tmp) >= getUserPermissionLevel(username):
+                    return jsonify({'error': 'Cannot switch to a user with the same or higher permission level.'})
+                
+                # If tmp has no session
+                if not any(sess['username'] == tmp for sess in sessions):
+                    session['username'] = tmp
+                    session['token'] = secrets.token_urlsafe(16)
+                    session['theme'] = users[tmp].get('theme', 'light')
+                    # If already logged in destroy old session!
+                    for sess in sessions:
+                        if sess['username'] == session['username']:
+                            rmauth(session['username'])
+                    genauth(tmp,session['token'])
+                    return jsonify({'error': f'Switched to {tmp}. Refresh for best results!'})
+                else:
+                    return jsonify({'error': 'Cannot switch user, they are online.'})
+            else:
+                return jsonify({'error': f"{tmp} doesn't exist."})
         
     return jsonify({'success': 'Command processed'})
 
@@ -170,6 +277,10 @@ def login():
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
             session['theme'] = users[username].get('theme', 'light')
+            # If already logged in destroy old session!
+            for sess in sessions:
+                if sess['username'] == session['username']:
+                    rmauth(session['username'])
             genauth(username,session['token'])
             return redirect(url_for('v3_index'))
         else:
@@ -207,12 +318,16 @@ def signup():
 @app.route('/logout', methods=['GET'])
 def logout():
     global users, messages, channels
-    print(f"User {session['username']} logged out")
-    for sess in sessions:
-        if sess['username'] == session['username']:
-            sessions.remove(sess)
-    session.pop('username', None)
-    session.pop('token', None)
+    if session == {}:
+        return redirect(url_for('login'))
+    
+    if session['username'] != None:
+        print(f"User {session['username']} logged out")
+        for sess in sessions:
+            if sess['username'] == session['username']:
+                sessions.remove(sess)
+        session.pop('username', None)
+        session.pop('token', None)
     return redirect(url_for('login'))
 
 # Main application
@@ -339,10 +454,14 @@ def getUser(username):
         Editable = username==session['username']
         Friends = getAllMutualFriends(username)
         print(Friends)
-        return render_template('profile.html', username=username, profileUrl=getProfilePicture(username),
-                                permissionLevel=getUserPermissionLevel(username), about=users.get(username, {}).get('about', 'No about'),
-                                editable=Editable, isFriend=checkFriend(session['username'], username),
-                                friends=Friends)
+        # return render_template('profile.html', username=username, profileUrl=getProfilePicture(username),
+        #                         permissionLevel=getUserPermissionLevel(username), about=users.get(username, {}).get('about', 'No about'),
+        #                         editable=Editable, isFriend=checkFriend(session['username'], username),
+        #                         friends=Friends)
+        return jsonify(username=username, profileUrl=getProfilePicture(username),
+                               permissionLevel=getUserPermissionLevel(username), about=users.get(username, {}).get('about', 'No about'),
+                                 editable=Editable, isFriend=checkFriend(session['username'], username),
+                                 friends=Friends)
     elif request.method == 'PATCH':
         if username != session['username']:
             isFriend = request.json.get('isFriend', False)
@@ -364,7 +483,10 @@ def getUser(username):
                 return jsonify({'error': 'About cannot be longer than 500 characters'})
             users[username]['about'] = about
             profileUrl = request.json.get('profileUrl', defaultprofilepicture)
-            users[username]['profileUrl'] = profileUrl
+            if validate_url(profileUrl):
+                users[username]['profileUrl'] = profileUrl
+            else:
+                return jsonify({'error': 'Invalid profile picture URL'})
             theme = request.json.get('theme', 'light')  # Get the theme from the request
             users[username]['theme'] = theme  # Save the theme to the user
             session['theme'] = theme
@@ -383,11 +505,16 @@ def getTheme(username):
         return jsonify({'success': 'Theme updated'})
     return jsonify({'error': 'Server error'},500)
 
+# /unavailable
+@app.route('/unavailable', methods=['GET'])
+def unavailable():
+    return render_template('unavailable.html',message=f"Resource unavailable")
+
 @app.before_request
 def preprocessing():
     global users, messages, channels
     # Urls without ANY pre-load authentication
-    whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg','/logo.png']
+    whitelist = ['/login','/signup','/favicon.ico','/default_profile_picture.jpg','/logo.png','/unavailable','/logout']
 
     if request.path in whitelist:
         return
@@ -398,6 +525,14 @@ def preprocessing():
             return
 
     if authcheck(session):
+        # Find creation time of session
+        banned = False
+        # Check if 'banned' key exists in the session
+        if 'banned' in users[session['username']]:
+            banned = users[session['username']]['banned']
+        if banned:
+            return render_template('unavailable.html',message=f"{session['username']} is banned from accessing this service.")
+        print(banned)
         print(f"User {session['username']} went to {request.path}")
         return
     else:
@@ -411,7 +546,7 @@ def authcheck(session):
     if session == {}:
         return False
     
-    # Find creation time of session
+    
     creation = time.time()
     for sess in sessions:
         if sess['username'] == session["username"] and sess['token'] == session["token"]:
@@ -445,6 +580,13 @@ def genauth(username,token):
     global sessions
     sessions.append({"username":username,"token":token,"creation":time.time()})
     print(f"User {username} authenticated with {token}")
+
+def validate_url(url):
+    try:
+        response = requests.head(url)
+        return response.status_code == 200
+    except requests.ConnectionError:
+        return False
 
 if __name__ == '__main__':
     load_data()
