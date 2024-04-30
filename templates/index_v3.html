@@ -533,6 +533,9 @@
         </div>
     </div>
     <script>
+        var channelRefresh = 5000;
+        var messageRefresh = 1000;
+
         window.addEventListener('load', function() {
             // Remove the splash screen after 2.5 seconds
             setTimeout(function() {
@@ -666,7 +669,7 @@
         fetchChannels();
 
         // Then call it every 5 seconds
-        setInterval(fetchChannels, 5000);
+        setInterval(fetchChannels, channelRefresh);
 
         // Get messages
         // Define the fetch operation in a separate function
@@ -846,7 +849,7 @@
         fetchMessages();
 
         // Then call it every 5 seconds
-        setInterval(fetchMessages, 1000);
+        setInterval(fetchMessages, messageRefresh);
 
         // Send messages
         function sendMessage(message) {
@@ -1064,13 +1067,17 @@
                                     if (response.error) {
                                         calert(response.error);
                                         return;
+                                    } else {
+                                        // Update profile badge image
+                                        document.getElementById('profile-picture').src = profilePicture.src;
                                     }
                                     openProfile("{{username}}");
                                 }
                             };
                             var data = {
                                 about: aboutMe.innerText, // Use aboutMe instead of aboutMeElement
-                                profileUrl: profilePicture.src // Add this line to include the profile picture URL in the data
+                                profileUrl: profilePicture.src, // Add this line to include the profile picture URL in the data
+                                theme: document.body.classList.contains('dark-theme') ? 'dark' : 'light',
                             };
                             xhr.send(JSON.stringify(data));
                         };

@@ -5,7 +5,7 @@ from cssmin import cssmin
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests
+import requests, threading, logging
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('AUTH_KEY')
@@ -23,6 +23,13 @@ readOnlyChannels = []
 users = {}
 sessions = []
 session_timeout = 1800 # 60 * (minutes)
+
+# Speed Optimizers
+slowChannelRefresh = "20000"
+fastChannelRefresh = "5000"
+slowMessageRefresh = "5000"
+fastMessageRefresh = "1000"
+maxMessages = 50
 
 def save_data():
     global users, messages, channels, readOnlyChannels
@@ -371,7 +378,9 @@ def v3_index():
     global users, messages, channels, commands
     if authcheck(session):
         print(f"User {session['username']} accessed the index page")
-        return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),theme=session['theme'])
+        return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),
+                               theme=session['theme'],slowChannelRefresh=slowChannelRefresh, fastChannelRefresh=fastChannelRefresh, 
+                               slowMessageRefresh=slowMessageRefresh, fastMessageRefresh=fastMessageRefresh)
     else:
         print("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
@@ -397,7 +406,7 @@ def getMessages(channel):
             messages[channel] = []  # Initialize an empty list for the new channel
     if request.method == 'GET':
         if channel in messages:
-            n_messages = messages[channel][-25:]  # Get the last 25 messages for the channel
+            n_messages = messages[channel][-int(maxMessages):]  # Get the last 25 messages for the channel
         else:
             n_messages = []  # Return an empty list if the channel does not exist
 
@@ -413,7 +422,7 @@ def getMessages(channel):
                 msg['deletable'] = True
 
         # If the number of messages is less than or equal to 25, add a message at the beginning
-        if len(n_messages) == 25:
+        if len(n_messages) == int(maxMessages):
             end_message = {
                 'username': 'System',
                 'message': 'To reduce load times, this is the end of your visible message history!',
@@ -507,10 +516,10 @@ def getUser(username):
                 return jsonify({'error': 'About cannot be longer than 500 characters'})
             users[username]['about'] = about
             profileUrl = request.json.get('profileUrl', defaultprofilepicture)
-            if validate_url(profileUrl):
-                users[username]['profileUrl'] = profileUrl
-            else:
-                return jsonify({'error': 'Invalid profile picture URL'})
+            # if validate_url(profileUrl):
+            users[username]['profileUrl'] = profileUrl
+            # else:
+            #     return jsonify({'error': 'Invalid profile picture URL'})
             theme = request.json.get('theme', 'light')  # Get the theme from the request
             users[username]['theme'] = theme  # Save the theme to the user
             session['theme'] = theme
@@ -602,7 +611,7 @@ def authcheck(session):
 def rmauth(username):
     for sess in sessions:
         if sess['username'] == username:
-            print(f"Deauthing {username}, token: {session['token']} is now useless")
+            print(f"Deauthing {username}, token: {sess['token']} is now useless")
             sessions.remove(sess)
 
 def genauth(username,token):
@@ -617,12 +626,12 @@ def validate_url(url):
     except requests.ConnectionError:
         return False
 
-if __name__ == '__main__':
+def optimize(source:str,output:str):
     try:
     # Build index_v3.html
-        with open('./templates/index_v3.html', 'r') as f:
+        with open(f'./templates/{source}', 'r') as f:
             index_v3 = f.read()
-            print("Read source index.html")
+            print(f"Read source {source}")
 
         soup = BeautifulSoup(index_v3, 'html.parser')
 
@@ -637,16 +646,45 @@ if __name__ == '__main__':
         #         style.string = cssmin(style.string)
 
         new_index = minify(str(soup), remove_comments=True)
-        print("Minified index.html")
+        print(f"Minified {source}")
 
-        with open('./templates/index.html', 'w') as f:
+        with open(f'./templates/{output}', 'w') as f:
             f.write(new_index)
-            print("Wrote new index.html")
+            print(f"Wrote new {output}")
     except:
-        print("Failed to minify index.html")
+        print(f"Failed to minify {source}")
+
+def run_server():
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.INFO)
+
+    handler = logging.FileHandler('server.log')
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s '
+        '[in %(pathname)s:%(lineno)d]'
+    ))
+
+    log.addHandler(handler)
+
+    app.run(debug=False)
+
+if __name__ == '__main__':
+    optimize("index_v3.html","index.html")
+    optimize("signup_v3.html","signup.html")
+    optimize("login_v3.html","login.html")
+    optimize("unavailable_v3.html","unavailable.html")
 
     load_data()
 
     # print(messages, channels, users)
     atexit.register(save_data)
-    app.run(debug=False)
+    server_thread = threading.Thread(target=run_server)
+    server_thread.start()
+    while (True):
+        cmd = input("> ")
+        if cmd != "exit":
+            with app.app_context():
+                processCommand(cmd,'System','System')
+        else:
+            break
+    

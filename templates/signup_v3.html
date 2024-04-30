@@ -1,4 +1,8 @@
-<!DOCTYPE html><html> <head><title>Signup</title><style>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Signup</title>
+    <style>
         body {
             background-color: #1a1a1a;
             color: #ffffff;
@@ -67,4 +71,32 @@
             overflow: hidden;
             transition: opacity 1s, max-height 1s;
         }
-    </style></head> <body> <img alt=Logo id=logo src=/logo.png> <form method=post> <p><input name=username placeholder=Username type=text></p> <p><input name=password placeholder=Password type=password></p> <p><input type=submit value=Signup></p> <p style="text-align: center;">Already have an account? <a href=/login>Login</a></p> </form> <script>var error="{{ error }}";if(error){var p=document.createElement("p");p.id="errorMessage";p.innerHTML=error;document.querySelector("form").appendChild(p);setTimeout(function(){p.style.opacity="0";p.style.maxHeight="0";},5000);}</script> </body> </html>
+    </style>
+</head>
+<body>
+    <img id="logo" src="/logo.png" alt="Logo">
+    <form method="post">
+        <p><input type="text" name="username" placeholder="Username"></p>
+        <p><input type="password" name="password" placeholder="Password"></p>
+        <p><input type="submit" value="Signup"></p>
+        <p style="text-align: center;">Already have an account? <a href="/login">Login</a></p>
+    </form>
+    <!-- If {{ error }} is not empty then display it -->
+    <script>
+        var error = "{{ error }}";
+        if (error) {
+            // Insert a document element below the signup notice
+            var p = document.createElement("p");
+            p.id = "errorMessage";
+            p.innerHTML = error;
+            document.querySelector("form").appendChild(p);
+
+            // Fade out the error message after 5 seconds
+            setTimeout(function() {
+                p.style.opacity = "0";
+                p.style.maxHeight = "0";
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
