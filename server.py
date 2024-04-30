@@ -1,4 +1,8 @@
 import os, json, datetime, atexit, secrets, uuid, time
+from htmlmin import minify
+from jsmin import jsmin
+from cssmin import cssmin
+from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
@@ -114,7 +118,7 @@ def processCommand(command, username, channel):
             tmpchannel = command.removeprefix('createchannel').strip()
             if tmpchannel in channels:
                 return {'error': 'Channel already exists'}
-            channels[tmpchannel] = {'readOnly': False}  # Create a new channel with 'readOnly' set to False
+            channels.append(tmpchannel)  # Add the new channel to the list
             save_data()  # Save the data after updating the channels list
             addMessage('System', tmpchannel, f"Channel {tmpchannel} created")  # Move this line here
             return jsonify({'error': 'Channel created'})
@@ -122,8 +126,8 @@ def processCommand(command, username, channel):
             tmpchannel = command.removeprefix('deletechannel').strip()
             if tmpchannel not in channels:
                 return {'error': 'Channel does not exist'}
-            del channels[tmpchannel]  # Delete the channel
-            del messages[tmpchannel]  # Delete the messages for the channel
+            channels.remove(tmpchannel)  # Remove the channel from the list
+            messages.pop(tmpchannel, None)  # Delete the messages for the channel
             addMessage('System', channel, f"Channel {tmpchannel} deleted")
             return jsonify({'error': 'Channel deleted'})
         elif command.startswith('clearchannel'):
@@ -136,6 +140,22 @@ def processCommand(command, username, channel):
         elif command.startswith('whereami'):
             addMessage('System', channel, f"You are in {channel}")
             return jsonify({'error': f'You are in {channel}'})
+
+    if permissionLevel >= 3:
+        if command.startswith('adduser'):
+            tmp = command.removeprefix('adduser').strip().split(' ')
+            user = tmp[0]
+            passwd = str(tmp[1])
+            if user in users:
+                return jsonify({'error': f"{user} already exists"})
+            users[user] = {
+                'password': generate_password_hash(passwd),
+                'permissionLevel': 0,
+                'profileUrl': defaultprofilepicture,
+                'friends': []
+            }
+            addMessage('System', channel, f"{user} has been created")
+            return jsonify({'error': f'{user} has been created'})
 
     if permissionLevel >= 4:
         if command.startswith('sudo'):
@@ -314,7 +334,7 @@ def signup():
             session['token'] = secrets.token_urlsafe(16)
             session['theme'] = 'light'
             genauth(username,session['token'])
-            return redirect(url_for('index'))
+            return redirect(url_for('v3_index'))
     elif request.method == 'GET':
         return render_template('signup.html')
 
@@ -598,7 +618,35 @@ def validate_url(url):
         return False
 
 if __name__ == '__main__':
+    try:
+    # Build index_v3.html
+        with open('./templates/index_v3.html', 'r') as f:
+            index_v3 = f.read()
+            print("Read source index.html")
+
+        soup = BeautifulSoup(index_v3, 'html.parser')
+
+        # Minify JavaScript
+        for script in soup.find_all('script'):
+            if script.string:
+                script.string = jsmin(script.string)
+
+        # Minify CSS
+        # for style in soup.find_all('style'):
+        #     if style.string:
+        #         style.string = cssmin(style.string)
+
+        new_index = minify(str(soup), remove_comments=True)
+        print("Minified index.html")
+
+        with open('./templates/index.html', 'w') as f:
+            f.write(new_index)
+            print("Wrote new index.html")
+    except:
+        print("Failed to minify index.html")
+
     load_data()
+
     # print(messages, channels, users)
     atexit.register(save_data)
     app.run(debug=False)
