@@ -955,13 +955,13 @@
 
         // When the user clicks on the close button, close the modal
         span.onclick = function() {
-            modal.style.display = "none";
+            closeModal();
         }
 
         // When the user clicks anywhere outside of the modal, close it
         window.onclick = function(event) {
             if (event.target == modal) {
-                modal.style.display = "none";
+                closeModal();
             }
         }
 
@@ -1100,6 +1100,10 @@
                     // Display the modal
                     modal.style.display = "block";
                 });
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
         }
     </script>
     <script src="EmojiPicker.js"></script>

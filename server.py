@@ -1,11 +1,21 @@
-import os, json, datetime, atexit, secrets, uuid, time
+# Standard library imports
+import atexit, datetime, json, os, secrets, threading, time, uuid, logging
+
+# Third-party imports
+from bs4 import BeautifulSoup
+from cssmin import cssmin
+from flask import (Flask, jsonify, redirect, render_template, request, session, 
+                   url_for, send_file)
 from htmlmin import minify
 from jsmin import jsmin
-from cssmin import cssmin
-from bs4 import BeautifulSoup
-from flask import Flask, request, jsonify, session, redirect, url_for, render_template, send_file
-from werkzeug.security import generate_password_hash, check_password_hash
-import requests, threading, logging
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.shortcuts import print_formatted_text
+import requests
+from werkzeug.security import check_password_hash, generate_password_hash
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('AUTH_KEY')
@@ -23,8 +33,10 @@ readOnlyChannels = []
 users = {}
 sessions = []
 session_timeout = 1800 # 60 * (minutes)
+logAccess = False
+github_url = "Sigma"
 
-# Speed Optimizers
+# Speed Optimizers -- Unused -- Oopsie!
 slowChannelRefresh = "20000"
 fastChannelRefresh = "5000"
 slowMessageRefresh = "5000"
@@ -41,6 +53,7 @@ def save_data():
     }
     with open(dbpath, 'w') as f:
         json.dump(data, f)
+    log(f"Data saved at: {datetime.datetime.now().strftime('%H:%M:%S')}")
     print(f"Data saved at: {datetime.datetime.now().strftime('%H:%M:%S')}")
 
 def load_data():
@@ -52,9 +65,9 @@ def load_data():
         messages = {channel: data['messages'].get(channel, []) for channel in channels}
         users = data.get('users', {})
         readOnlyChannels = data.get('readOnlyChannels', [])
-        print(f"Data read at: {datetime.datetime.now().strftime('%H:%M:%S')}")
+        log(f"Data read at: {datetime.datetime.now().strftime('%H:%M:%S')}")
     except:
-        print("Failed to read, returning empty data")
+        log("Failed to read, returning empty data")
         messages, channels, users = {}, [], {}
 
 def getProfilePicture(username):
@@ -91,7 +104,7 @@ def addMessage(username, channel, message):
         'edited': False,
         'uuid': str(uuid.uuid4())
     })
-    print(f"#{channel} - {username}: {message}")
+    log(f"#{channel} - {username}: {message}")
     save_data()
     if warning != "":
         return jsonify({'error': warning})
@@ -120,6 +133,9 @@ def processCommand(command, username, channel):
     global users, messages, channels
     permissionLevel = getUserPermissionLevel(username)
 
+    if username != "System":
+        log(f"@{username} is running command: {command}")
+
     if permissionLevel >= 1:
         if command.startswith('createchannel'):
             tmpchannel = command.removeprefix('createchannel').strip()
@@ -147,6 +163,12 @@ def processCommand(command, username, channel):
         elif command.startswith('whereami'):
             addMessage('System', channel, f"You are in {channel}")
             return jsonify({'error': f'You are in {channel}'})
+        elif command.startswith('log'):
+            tmp = command.removeprefix('log').strip()
+            log(tmp)
+            return jsonify({'error': f'Logged: {tmp}'})
+        elif command == "channels":
+            return jsonify({'error': ', '.join(channels)})
 
     if permissionLevel >= 3:
         if command.startswith('adduser'):
@@ -162,7 +184,25 @@ def processCommand(command, username, channel):
                 'friends': []
             }
             addMessage('System', channel, f"{user} has been created")
+            save_data()
             return jsonify({'error': f'{user} has been created'})
+        elif command.startswith('sayin'):
+            tmp = command.removeprefix('sayin').strip().split(' ', 1)
+            if len(tmp) < 2:
+                return {"error": "Both channel and message must be supplied."}
+            channel, message = tmp
+            if not channel or not message:
+                return {"error": "Both channel and message must be supplied."}
+            return addMessage(username, channel, message)
+        elif command.startswith('messages'):
+            channel = command.removeprefix('messages').strip()
+            if channel in messages:
+                # Get the last 25 messages for the channel
+                n_messages = messages[channel][-int(maxMessages):]
+                # Format with \n for the print out!
+                return jsonify({'error': '\n'.join([msg['message'] for msg in n_messages])})
+            else:
+                return jsonify({'error': 'Channel does not exist'})
 
     if permissionLevel >= 4:
         if command.startswith('sudo'):
@@ -172,13 +212,16 @@ def processCommand(command, username, channel):
             return addMessage(user, channel, message)
         elif command.startswith('perm'):
             tmp = command.removeprefix('perm').strip().split(' ')
+            if len(tmp) < 2:
+                return jsonify({'error': 'No permission level specified'})
             user = tmp[0]
             number = int(tmp[1])
-            if number > 3:
-                return {'error': 'Permission level cannot be higher than 3'}
+            if number >= 5:
+                return {'error': 'Permission level cannot be higher than 4'}
             if user in users:
                 users[user]['permissionLevel'] = number
                 addMessage('System', channel, f"Permission level of {user} changed to {number}")
+                save_data()
                 return jsonify({'error': f'Permission level of {user} changed to {number}'})
             else:
                 return jsonify({'error': f"{user} doesn't exist"})
@@ -187,6 +230,7 @@ def processCommand(command, username, channel):
             if user in users:
                 del users[user]
                 addMessage('System', channel, f"{user} has been deleted")
+                save_data()
                 return jsonify({'error': f'{user} has been deleted'})
             else:
                 return jsonify({'error': f"{user} doesn't exist"})
@@ -289,7 +333,9 @@ def processCommand(command, username, channel):
             else:
                 return jsonify({'error': f"{tmp} doesn't exist."})
         
-    return jsonify({'success': 'Command processed'})
+    if username != "System":
+        log(f"@{username} tried to run command: {command}")
+    return jsonify({'error': f'Unknown command {command}'})
 
 def getUUIDpm(username1, username2):
     sorted_usernames = sorted([username1, username2])
@@ -329,14 +375,14 @@ def signup():
         if username in users:
             return render_template('signup.html', error="Username already exists")
         else:
-            print(f"User {username} signed up")
+            log(f"User {username} signed up")
             users[username] = {
                 'password': generate_password_hash(password),
                 'permissionLevel': 0,
                 'profileUrl': defaultprofilepicture,
                 'friends': []
             }
-            print("User created!")
+            log("User created!")
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
             session['theme'] = 'light'
@@ -353,7 +399,7 @@ def logout():
         return redirect(url_for('login'))
     
     if session['username'] != None:
-        print(f"User {session['username']} logged out")
+        log(f"User {session['username']} logged out")
         for sess in sessions:
             if sess['username'] == session['username']:
                 sessions.remove(sess)
@@ -361,15 +407,15 @@ def logout():
         session.pop('token', None)
     return redirect(url_for('login'))
 
-# Main application
+# Old ui application
 @app.route('/v2ui', methods=['GET'])
 def v2_index():
     global users, messages, channels
     if 'username' in session:
-        print(f"User {session['username']} accessed the index page")
+        log(f"User {session['username']} accessed the index page")
         return render_template('old_index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
     else:
-        print("A user tried to access the index page without logging in")
+        log("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
     
 # Main application
@@ -377,12 +423,12 @@ def v2_index():
 def v3_index():
     global users, messages, channels, commands
     if authcheck(session):
-        print(f"User {session['username']} accessed the index page")
+        log(f"User {session['username']} accessed the index page")
         return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),
                                theme=session['theme'],slowChannelRefresh=slowChannelRefresh, fastChannelRefresh=fastChannelRefresh, 
                                slowMessageRefresh=slowMessageRefresh, fastMessageRefresh=fastMessageRefresh)
     else:
-        print("A user tried to access the index page without logging in")
+        log("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
 
 # /channels
@@ -402,7 +448,7 @@ def getMessages(channel):
         puser = channel.removeprefix('@')
         channel = getUUIDpm(session['username'], puser)
         if channel not in channels:
-            channels[channel] = {'readOnly': False}
+            channels.append(channel)
             messages[channel] = []  # Initialize an empty list for the new channel
     if request.method == 'GET':
         if channel in messages:
@@ -486,7 +532,7 @@ def getUser(username):
     if request.method == 'GET':
         Editable = username==session['username']
         Friends = getAllMutualFriends(username)
-        print(Friends)
+        log(Friends)
         # return render_template('profile.html', username=username, profileUrl=getProfilePicture(username),
         #                         permissionLevel=getUserPermissionLevel(username), about=users.get(username, {}).get('about', 'No about'),
         #                         editable=Editable, isFriend=checkFriend(session['username'], username),
@@ -570,11 +616,11 @@ def preprocessing():
             banned = users[session['username']]['banned']
         if banned:
             return render_template('unavailable.html',message=f"{session['username']} is banned from accessing this service.")
-        print(banned)
-        print(f"User {session['username']} went to {request.path}")
+        if logAccess:
+            log(f"User {session['username']} went to {request.path}")
         return
     else:
-        print("Not logged in redirecting to login page")
+        log("Not logged in redirecting to login page")
         return redirect(url_for('login'))
 
 def authcheck(session):
@@ -603,21 +649,21 @@ def authcheck(session):
         if sess['username'] == session["username"] and sess['token'] == session["token"]:
             return True
     try:
-        print(f"{session['username']} used invalid token {session['token']}")
+        log(f"{session['username']} used invalid token {session['token']}")
     except:
-        print(f"Unknown user used an invalid token!")
+        log(f"Unknown user used an invalid token!")
     return False
 
 def rmauth(username):
     for sess in sessions:
         if sess['username'] == username:
-            print(f"Deauthing {username}, token: {sess['token']} is now useless")
+            log(f"Deauthing {username}, token: {sess['token']} is now useless")
             sessions.remove(sess)
 
 def genauth(username,token):
     global sessions
     sessions.append({"username":username,"token":token,"creation":time.time()})
-    print(f"User {username} authenticated with {token}")
+    log(f"User {username} authenticated with {token}")
 
 def validate_url(url):
     try:
@@ -631,7 +677,7 @@ def optimize(source:str,output:str):
     # Build index_v3.html
         with open(f'./templates/{source}', 'r') as f:
             index_v3 = f.read()
-            print(f"Read source {source}")
+            log(f"Read source {source}")
 
         soup = BeautifulSoup(index_v3, 'html.parser')
 
@@ -646,17 +692,21 @@ def optimize(source:str,output:str):
         #         style.string = cssmin(style.string)
 
         new_index = minify(str(soup), remove_comments=True)
-        print(f"Minified {source}")
+        log(f"Minified {source}")
 
         with open(f'./templates/{output}', 'w') as f:
             f.write(new_index)
-            print(f"Wrote new {output}")
+            log(f"Wrote new {output}")
     except:
-        print(f"Failed to minify {source}")
+        log(f"Failed to minify {source}")
 
 def run_server():
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.INFO)
+
+    # Clear server.log
+    with open('server.log', 'w'):
+        pass
 
     handler = logging.FileHandler('server.log')
     handler.setFormatter(logging.Formatter(
@@ -666,7 +716,57 @@ def run_server():
 
     log.addHandler(handler)
 
+
     app.run(debug=False)
+
+logs = []
+
+def log(message):
+    global logs, new_logs
+    logs.append(str(message))
+    new_logs = True
+
+MAX_LOGS = 20  # Maximum number of log messages to keep
+
+def print_logs():
+    global logs, new_logs
+    while True:
+        if new_logs:
+            with patch_stdout():
+                os.system('clear')  # Clear the console
+                # Only keep the last MAX_LOGS log messages
+                logs = logs[-MAX_LOGS:]
+                print_formatted_text(FormattedText([('white', '\n'.join(logs))]))
+            new_logs = False
+        time.sleep(0.1)
+
+def run_console():
+    session = PromptSession()
+    global logs, new_logs
+    while True:
+        try:
+            with patch_stdout():
+                cmd = session.prompt('> ', auto_suggest=AutoSuggestFromHistory())
+            if cmd != "exit" and not "":
+                with app.app_context():
+                    log(f"> {str(cmd)}")
+                    response = processCommand(cmd,'System','System')
+                    output = "No command response!"
+                    if hasattr(response, 'json') and response.json is not None:
+                        if 'error' in response.json:
+                            output = response.json['error']
+                        elif 'success' in response.json:
+                            output = response.json['success']
+                    log(f"{output}")
+            else:
+                log(f"<!> Unreasonable to exit like this, use CTRL+C <!>")
+        except Exception as e:
+            logs = []
+            log(f"<!> Console Error! <!> START!")
+            log(f"Exception: {e}")
+            log(f"<!> Console Error! <!> END!")
+            new_logs = True
+
 
 if __name__ == '__main__':
     optimize("index_v3.html","index.html")
@@ -676,15 +776,35 @@ if __name__ == '__main__':
 
     load_data()
 
-    # print(messages, channels, users)
     atexit.register(save_data)
+
+    log_thread = threading.Thread(target=print_logs)
+    log_thread.start()
+
     server_thread = threading.Thread(target=run_server)
     server_thread.start()
-    while (True):
-        cmd = input("> ")
-        if cmd != "exit":
-            with app.app_context():
-                processCommand(cmd,'System','System')
-        else:
-            break
+
+    # If a "System" user doesn't exist, leave a blank password so that no one can log in as "System"
+    if 'System' not in users:
+        users['System'] = {
+            'password': generate_password_hash(''),
+            'permissionLevel': 5,
+            'profileUrl': defaultprofilepicture,
+            'friends': []
+        }
+        log(f"System user created -- Likely first run!")
     
+    # If no channels exist, create a "Welcome" channel!
+    if len(channels) == 0:
+        channels.append('Welcome')
+        messages['Welcome'] = []
+
+        addMessage('System', 'Welcome', f"Checkout {github_url} to learn how to setup your own chat server!")
+
+    # console_input = NonBlockingConsoleInput()
+    # asyncio.run(run_console(console_input))
+
+    
+
+    run_console()
+    server_thread.join()
