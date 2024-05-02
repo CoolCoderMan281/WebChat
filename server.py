@@ -35,6 +35,7 @@ sessions = []
 session_timeout = 1800 # 60 * (minutes)
 logAccess = False
 github_url = "Sigma"
+bannedUsernameChars = [" ","@","#"]
 
 # Speed Optimizers -- Unused -- Oopsie!
 slowChannelRefresh = "20000"
@@ -143,7 +144,6 @@ def processCommand(command, username, channel):
                 return {'error': 'Channel already exists'}
             channels.append(tmpchannel)  # Add the new channel to the list
             save_data()  # Save the data after updating the channels list
-            addMessage('System', tmpchannel, f"Channel {tmpchannel} created")  # Move this line here
             return jsonify({'error': 'Channel created'})
         elif command.startswith('deletechannel'):
             tmpchannel = command.removeprefix('deletechannel').strip()
@@ -151,7 +151,6 @@ def processCommand(command, username, channel):
                 return {'error': 'Channel does not exist'}
             channels.remove(tmpchannel)  # Remove the channel from the list
             messages.pop(tmpchannel, None)  # Delete the messages for the channel
-            addMessage('System', channel, f"Channel {tmpchannel} deleted")
             return jsonify({'error': 'Channel deleted'})
         elif command.startswith('clearchannel'):
             tmpchannel = command.removeprefix('clearchannel').strip()
@@ -161,7 +160,6 @@ def processCommand(command, username, channel):
             addMessage('System', channel, f"Channel {tmpchannel} cleared")
             return jsonify({'error': 'Channel cleared'})
         elif command.startswith('whereami'):
-            addMessage('System', channel, f"You are in {channel}")
             return jsonify({'error': f'You are in {channel}'})
         elif command.startswith('log'):
             tmp = command.removeprefix('log').strip()
@@ -183,7 +181,6 @@ def processCommand(command, username, channel):
                 'profileUrl': defaultprofilepicture,
                 'friends': []
             }
-            addMessage('System', channel, f"{user} has been created")
             save_data()
             return jsonify({'error': f'{user} has been created'})
         elif command.startswith('sayin'):
@@ -220,7 +217,6 @@ def processCommand(command, username, channel):
                 return {'error': 'Permission level cannot be higher than 4'}
             if user in users:
                 users[user]['permissionLevel'] = number
-                addMessage('System', channel, f"Permission level of {user} changed to {number}")
                 save_data()
                 return jsonify({'error': f'Permission level of {user} changed to {number}'})
             else:
@@ -229,7 +225,6 @@ def processCommand(command, username, channel):
             user = command.removeprefix('deleteuser').strip()
             if user in users:
                 del users[user]
-                addMessage('System', channel, f"{user} has been deleted")
                 save_data()
                 return jsonify({'error': f'{user} has been deleted'})
             else:
@@ -240,16 +235,17 @@ def processCommand(command, username, channel):
             passwd = str(tmp[1])
             if user in users:
                 users[user]['password'] = generate_password_hash(passwd)
-                addMessage('System', channel, f"Password for {user} has been set.")
                 return jsonify({'error': f'Password for {user} has been set.'})
             else:
                 return jsonify({'error': f"{user} doesn't exist"})
         elif command.startswith('deauth'):
             tmp = command.removeprefix('deauth').strip()
             if tmp in users:
-                rmauth(tmp)
-                addMessage('System', channel, f"{tmp} has been deauthenticated.")
-                return jsonify({'error': f'{tmp} has been deauthenticated.'})
+                success = rmauth(tmp)
+                if (success):
+                    return jsonify({'error': f'{tmp} has been deauthenticated.'})
+                else:
+                    return jsonify({'error': f"{tmp} is not authenticated."})
             else:
                 return jsonify({'error': f"{tmp} doesn't exist."})
         elif command.startswith('ban'):
@@ -270,7 +266,6 @@ def processCommand(command, username, channel):
             if tmp in users:
                 rmauth(tmp)
                 users[tmp]['banned'] = True
-                addMessage('System', channel, f"{tmp} has been banned.")
                 return jsonify({'error': f'{tmp} has been banned.'})
             else:
                 return jsonify({'error': f"{tmp} doesn't exist."})
@@ -290,7 +285,6 @@ def processCommand(command, username, channel):
                 return jsonify({'error': 'Cannot unban a user with the same or higher permission level.'})
             if tmp in users:
                 users[tmp]['banned'] = False
-                addMessage('System', channel, f"{tmp} has been unbanned.")
                 return jsonify({'error': f'{tmp} has been unbanned.'})
             else:
                 return jsonify({'error': f"{tmp} doesn't exist."})
@@ -350,6 +344,12 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        if username == "":
+            return render_template('login.html', error="Username cannot be empty")
+        elif len(username) > 20:
+            return render_template('login.html', error="Invalid username") 
+        if password == "":
+            return render_template('login.html', error="Password cannot be empty")
         if username in users and check_password_hash(users[username]['password'], password):
             session['username'] = username
             session['token'] = secrets.token_urlsafe(16)
@@ -372,6 +372,12 @@ def signup():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        if username == "":
+            return render_template('signup.html', error="Username cannot be empty")
+        elif len(username) > 20:
+            return render_template('signup.html', error="Invalid username") 
+        if password == "":
+            return render_template('signup.html', error="Password cannot be empty")
         if username in users:
             return render_template('signup.html', error="Username already exists")
         else:
@@ -659,6 +665,9 @@ def rmauth(username):
         if sess['username'] == username:
             log(f"Deauthing {username}, token: {sess['token']} is now useless")
             sessions.remove(sess)
+            return True
+    log(f"User {username} not found in sessions")
+    return False
 
 def genauth(username,token):
     global sessions
