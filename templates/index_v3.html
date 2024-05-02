@@ -822,6 +822,22 @@
                         } else {
                             contentElement.textContent = " " + message.message + " (edited)";
                         }
+                        var text = message.edited ? message.message + " (edited)" : message.message;
+
+                        // Regular expression to match URLs
+                        var urlRegex = /(https?:\/\/[^\s]+)/g;
+
+                        // Replace URLs with anchor tags
+                        text = text.replace(urlRegex, function(url) {
+                            return '<a href="' + url + '" target="_blank">' + url + '</a>';
+                        });
+
+                        contentElement.innerHTML = " " + text;
+
+                        contentElement.addEventListener('click', function(event) {
+                            // Stop the propagation of the click event
+                            event.stopPropagation();
+                        });
                         messageElement.appendChild(profilePictureElement); // Add the profile picture to the message element
                         messageElement.appendChild(usernameElement); // Add the username element to the message element
                         usernameElement.appendChild(contentElement); // Add the content element to the message element
