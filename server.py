@@ -363,7 +363,11 @@ def login():
         else:
             return render_template('login.html', error="Invalid username or password")
     elif request.method == 'GET':
-        return render_template('login.html')
+        log(f"{request.user_agent}")
+        if 'Mobile' in request.user_agent.string or 'Android' in request.user_agent.string or 'iPhone' in request.user_agent.string:
+            return render_template('mobile/mobile_app.html')
+        else:
+            return render_template('login.html')
 
 # Signup
 @app.route('/signup', methods=['GET', 'POST'])
@@ -395,7 +399,11 @@ def signup():
             genauth(username,session['token'])
             return redirect(url_for('v3_index'))
     elif request.method == 'GET':
-        return render_template('signup.html')
+        log(f"{request.user_agent}")
+        if 'Mobile' in request.user_agent.string or 'Android' in request.user_agent.string or 'iPhone' in request.user_agent.string:
+            return render_template('mobile/mobile_app.html')
+        else:
+            return render_template('signup.html')
 
 # Logout
 @app.route('/logout', methods=['GET'])
@@ -419,7 +427,7 @@ def v2_index():
     global users, messages, channels
     if 'username' in session:
         log(f"User {session['username']} accessed the index page")
-        return render_template('old_index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
+        return render_template('legacy/old_index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']))
     else:
         log("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
@@ -430,9 +438,12 @@ def v3_index():
     global users, messages, channels, commands
     if authcheck(session):
         log(f"User {session['username']} accessed the index page")
-        return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),
-                               theme=session['theme'],slowChannelRefresh=slowChannelRefresh, fastChannelRefresh=fastChannelRefresh, 
-                               slowMessageRefresh=slowMessageRefresh, fastMessageRefresh=fastMessageRefresh)
+        if 'Mobile' in request.user_agent.string or 'Android' in request.user_agent.string or 'iPhone' in request.user_agent.string:
+            return render_template("mobile/mobile_app.html")
+        else:
+            return render_template('index.html', token=session['token'], username=session['username'], profileUrl=getProfilePicture(session['username']),
+                                   theme=session['theme'],slowChannelRefresh=slowChannelRefresh, fastChannelRefresh=fastChannelRefresh, 
+                                   slowMessageRefresh=slowMessageRefresh, fastMessageRefresh=fastMessageRefresh)
     else:
         log("A user tried to access the index page without logging in")
         return redirect(url_for('login'))
