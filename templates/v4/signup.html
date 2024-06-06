@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sign Up</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #343a40;
+            color: #fff;
+        }
+        .container {
+            max-width: 330px;
+            padding: 15px;
+            margin: auto;
+        }
+        .logo {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;
+        }
+        .fade {
+            animation: fadeout 2s forwards;
+            -webkit-animation: fadeout 2s forwards;
+        }
+        @keyframes fadeout {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+        @-webkit-keyframes fadeout {
+            from { opacity: 1; }
+            to   { opacity: 0; }
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $("form").on("submit", function(event){
+                var password = $("#password").val();
+                var confirmPassword = $("#confirm_password").val();
+                if (password !== confirmPassword) {
+                    // Display the error message and fade it in
+                    $(".error-notifier").hide().addClass("alert alert-danger").text("Passwords do not match.");
+                    $(".error-notifier").slideDown(500).fadeIn(500);
+                    setTimeout(function(){
+                        $(".error-notifier").slideUp(500).fadeOut(500);
+                    }, 4000);
+                    event.preventDefault();
+                } else {
+                    event.preventDefault();
+                    $.ajax({
+                        url: '/signup',
+                        type: 'post',
+                        data: {
+                            'username': $("#username").val(),
+                            'password': password
+                        },
+                        success: function(response){
+                            // Redirect to the app on successful signup
+                            window.location.href = "/";
+                        },
+                        error: function(xhr, status, error){
+                            // Display the error message and fade it in
+                            var responseJson = JSON.parse(xhr.responseText);
+                            var errorMessage = responseJson.error || "An error occurred. Please try again.";
+                            $(".error-notifier").hide().addClass("alert alert-danger").text(errorMessage);
+                            $(".error-notifier").slideDown(500).fadeIn(500);
+                            setTimeout(function(){
+                                $(".error-notifier").slideUp(500).fadeOut(500);
+                            }, 4000);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <img src="/logo.png" alt="Logo" class="logo">
+        <form action="/signup" method="post">
+            <h2 class="text-center">Sign Up</h2>
+            <p class="error-notifier"></p>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
+        </form>
+        <p class="text-center">
+            Already have an account? <a href="/login">Log in</a>
+        </p>
+    </div>
+</body>
+</html>
