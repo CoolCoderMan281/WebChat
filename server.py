@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_file
-import os, json, uuid, atexit
+import os, json, uuid, atexit, time, signal, psutil
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -20,6 +20,7 @@ channels = {}
 sessions = {}
 viewing_profiles = {}
 user_rooms = {}  # Mapping of usernames to rooms
+last_heartbeat = {}  # Mapping of rooms to last heartbeat
 PFP_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif']
 
 def allowed_file(filename):
@@ -159,7 +160,28 @@ def get_messages():
     if request.method == "GET":
         if checksession(session):
             if checkauth(session['username'], session['token']):
-                return jsonify(channels)
+                print(f"{session['username']} requested messages.")
+                # Get the channel and number of messages from the request
+                channel = request.args.get('channel')
+                num_messages = request.args.get('num_messages', default=20, type=int)
+                num_messages = min(num_messages, 100)  # Limit to 100 messages
+
+                # If the channel is in channels, return the specified number of messages
+                if channel in channels:
+                    messages = channels[channel][-num_messages:]  # Get the latest messages
+
+                    # Add profileUrl to each message
+                    for message in messages:
+                        user = message['user']
+                        profileUrl = users[user]['profilePicture']
+                        message['profileUrl'] = profileUrl
+
+                    return jsonify(messages)
+
+                # If the channel is not in channels, return an error
+                else:
+                    return jsonify({"error": "Channel not found."})
+
         return jsonify({"error":"Unauthorized."})
     elif request.method == "POST":
         if checksession(session):
@@ -251,10 +273,16 @@ def session_info():
             return jsonify({"username":session['username'],"token":session['token'],"permissionLevel":users[session['username']]['permissionLevel']})
     return jsonify({"error":"Unauthorized."})
 
+@app.route('/poweroff', methods=['GET'])
+def poweroff():
+    return render_template('v4/poweroff.html')
+
 @app.route('/static/<filename>')
 def static_files(filename):
     filename = secure_filename(filename)
-    return send_file(os.path.join('static', filename))
+    if os.path.exists(os.path.join('static', filename)):
+        return send_file(os.path.join('static', filename))
+    return send_file(os.path.join('static', 'dpfp.png'))
 
 def genauth(username):
     auth = uuid.uuid4()
@@ -280,22 +308,26 @@ def hasPerm(username, perm):
 @sock.on('connect', namespace='/subscriptions')
 def handle_connect():
     global user_rooms
-    print(f'Client {request.sid} connected')
-    join_room(request.sid)
+    if request.sid not in user_rooms:
+        print(f'Client {request.sid} connected')
+        join_room(request.sid)
 
 @sock.on('login', namespace='/subscriptions')
 def on_login(data):
     username = data.get('username')
     if username is None:
         print("Error: 'username' not provided")
+        send_updates({"notif":"Username not provided in websocket connection.\nFunctionality will be limited."},
+                     sid=request.sid)
         return
     global user_rooms
     username = data['username']
     token = data['token']
     print(f"Checking auth for {username} with token {token}")
     if not checkauth(username, uuid.UUID(token)):
+        send_updates({"redirect":"/login"}, sid=request.sid)
         print(f"Auth failed for {username}")
-        return False
+        return
     user_rooms[username] = request.sid  # Store the room for this user
     print(f'Client {request.sid} logged in as {username}')
 
@@ -303,8 +335,50 @@ def on_login(data):
 def handle_viewing_profile(data):
     global viewing_profiles
     username = get_username_from_sid(request.sid)
-    print(f'{username} is viewing {data["profile"]}')
     viewing_profiles[username] = {'profile': data['profile'], 'last_ping': datetime.now()}
+
+@sock.on('status', namespace='/subscriptions')
+def handle_status(data):
+    global last_heartbeat, users, viewing_profiles
+    username = get_username_from_sid(request.sid)
+    last_heartbeat[request.sid] = {'username': username, 'time': datetime.now()}
+    if username and username not in users:
+        users[username] = {}
+    if username:
+        old_status = users[username].get('status')
+        users[username]['status'] = data['status']
+        if old_status != data['status']:
+            print(f'{username} is now {data["status"]}')
+            now = datetime.now()
+            for viewer_username, viewer_data in list(viewing_profiles.items()):
+                if (now - viewer_data['last_ping']).total_seconds() > 2:
+                    del viewing_profiles[viewer_username]
+                elif viewer_data['profile'] == session['username']:
+                    send_updates({"action":"refresh_profile"}, username=viewer_username)
+
+def check_heartbeats():
+    while True:
+        global users, last_heartbeat, viewing_profiles
+        now = datetime.now()
+        for sid, last_heartbeat_info in list(last_heartbeat.items()):
+            username = last_heartbeat_info['username']
+            last_heartbeat_time = last_heartbeat_info['time']
+            time_diff = (now - last_heartbeat_time).total_seconds()
+            if time_diff > 2:
+                del last_heartbeat[sid]
+                if username and username in users:
+                    users[username]['status'] = 'offline'
+                    # Emit 'refresh_profile' event to all clients viewing the user's profile
+                    for viewer_username, viewer_data in list(viewing_profiles.items()):
+                        send_updates({"action":"refresh_profile"}, username=viewer_username)
+        time.sleep(2)
+
+def set_all_users_offline():
+    global users, viewing_profiles
+    for username in users:
+        if username:
+            users[username]['status'] = 'offline'
+    print("Marked all users as offline.")
 
 @sock.on('message', namespace='/subscriptions')
 def handle_message(data):
@@ -323,18 +397,37 @@ def get_username_from_sid(sid):
     for username, room in user_rooms.items():
         if room == sid:
             return username
+    print("Error: Could not find username for sid", sid)
     return None
 
-def send_updates(data, username=None):
+def send_updates(data, username=None, sid=None):
     global user_rooms
     serialized_data = json.dumps(data)
     if username:
         room = user_rooms.get(username)
         if room:
-            emit('update', serialized_data, room=room, namespace='/subscriptions')
+            with app.app_context():
+                emit('update', serialized_data, room=room, namespace='/subscriptions')
+    elif sid:
+        with app.app_context():
+            emit('update', serialized_data, room=sid, namespace='/subscriptions')
     else:
-        emit('update', serialized_data, namespace='/subscriptions', broadcast=True)
+        with app.app_context():
+            emit('update', serialized_data, namespace='/subscriptions', broadcast=True)
     print(f'Sent update: {serialized_data} to {username or "*"}')
 
+def restart_server():
+    save_data()
+    send_updates({"redirect":"/poweroff"})
+    t:int = 3
+    # print("Press CTRL+C to stop the server. Otherwise restarting in 3 seconds.")
+    while t > 0:
+        print(f"Server will stop in {t} seconds.")
+        time.sleep(1)
+        t -= 1
+    os._exit(0)
+
 load_data()
-atexit.register(save_data)
+set_all_users_offline()
+sock.start_background_task(target=check_heartbeats)
+atexit.register(restart_server)

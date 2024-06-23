@@ -4,81 +4,384 @@
     <title>Discord Clone</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <style>
+        :root {
+            --dark-background: #2c2f33;
+            --darker-background: #23272a;
+            --light-background: #36393f;
+            --text-color: #ffffff;
+            --accent-color: #7289da;
+            --accent-color-hover: #5865f2;
+            --sidebar-width: 10%;
+        }
+
+        body {
+            background-color: var(--dark-background);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            height: calc(100vh - 20px);
+            align-items: flex-start;
+            padding: 10px; /* Reduced padding to decrease space on the left and right */
+        }
+
         #sidebar {
-            position: fixed;
-            width: 200px;
-            height: 100%;
-            background-color: #2c2f33;
-            color: #ffffff;
-            padding: 10px;
-            overflow: auto;
+            width: var(--sidebar-width);
+            height: calc(100vh - 30px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0px; /* Reduced padding to decrease space on the left and right */
+            border-radius: 10px;
+            margin-right: 5px; /* Reduced margin to make the gap smaller */
+            margin-left: -5px;
+            background-color: transparent;
         }
-        #main {
-            margin-left: 210px;
-            padding: 10px;
+
+        #channels {
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: hidden; /* Add this line */
+            background-color: var(--darker-background);
+            border-radius: 10px;
         }
-        .channel {
-            padding: 5px;
+
+        #channels div {
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out, font-size 0.15s ease-in-out;
+        }
+
+        #channels div:hover {
+            background-color: var(--light-background);
+            transform: translateX(10px);
+            font-size: 1.2em; /* Increase the font size when hovering */
+        }
+
+        #usermenu {
+            box-sizing: border-box;
+            height: 8vh;
+            background-color: var(--darker-background);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 5px;
+            margin-bottom: -10px;
+        }
+
+        #selfpreview {
+            display: flex;
+            align-items: center;
+            position: relative;
+            flex-grow: 1;
+            flex-shrink: 1;
+            min-width: 0; /* This allows the element to shrink below content's intrinsic width */
+        }
+
+        #profileUsername {
+            margin-left: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-grow: 1;
+            flex-shrink: 1;
+        }
+
+        #usermenu img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+
+        #buttonContainer {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+        }
+
+        #usermenu button {
+            width: 20%;
+            height: 20%;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+        }
+
+        #usermenu button:hover {
+            background-color: var(--accent-color-hover);
+        }
+
+        #content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background-color: var(--darker-background);
+            border-radius: 10px;
+            width: calc(75% - 30px); /* Adjusted to account for padding and margins */
+            overflow-y: auto;
+            height: calc(100vh - 60px);
+            justify-content: flex-end; /* Add this line */
+        }
+
+        #topMenu {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--light-background);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid var(--dark-background);
+            text-align: center;
+        }
+
+        #messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            background-color: var(--darker-background);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        /* Add the following CSS to style the scrollbar */
+
+        #messages::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: var(--darker-background);
+            border-radius: 5px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: var(--light-background);
+            border-radius: 5px;
+        }
+
+        #messages::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        #messageForm {
+            display: flex;
+            align-items: center;
+            background-color: var(--darker-background);
+            padding: 10px;
+            border-radius: 5px;
+            position: sticky;
+            bottom: 0;
+            height: 40px; /* Add this line */
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            margin-right: 10px;
+            background-color: var(--light-background);
+            color: var(--text-color);
+        }
+
+        #messageInput::placeholder {
+            color: #b9bbbe;
+        }
+
+        #messageForm button {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease; /* Add this line */
+        }
+
+        #messageForm button:hover {
+            background-color: var(--accent-color-hover);
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-start;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: var(--light-background);
+        }
+
+        .message img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .message-username {
+            font-weight: bold;
+            margin-right: 10px;
             cursor: pointer;
         }
-        .channel:hover {
-            background-color: #23272a;
+
+        .message-timestamp {
+            font-size: 0.8em;
+            color: #b9bbbe;
         }
-        #addChannelButton {
-            position: absolute;
-            bottom: 50px;  /* Adjust this value to move the button up */
-            width: 180px;
+
+        .message-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 5px;
         }
-        #profileModal {
-            display: none;
-            position: fixed;
-            z-index: 1000;  /* This will make the modal appear on top of everything else */
-            left: 50%;  /* This will center the modal horizontally */
-            top: 50%;  /* This will center the modal vertically */
-            transform: translate(-50%, -50%);  /* This will center the modal */
-            width: 300px;  /* Adjust this value to change the width of the modal */
-            height: 400px;  /* Adjust this value to change the height of the modal */
-            background-color: #ffffff;
+
+        .message-actions button {
+            background-color: var(--darker-background);
+            color: var(--text-color);
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease; /* Add this line */
+        }
+
+        .message-actions button:hover {
+            background-color: var(--accent-color-hover);
+        }
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            padding-top: 100px; /* Location of the box */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
             padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);  /* This will give the modal a small shadow */
+            border: 1px solid #888;
+            width: 80%;
         }
-        #profilePicture {
-            width: 100%;  /* This will make the profile picture take up the full width of the modal */
-            height: auto;  /* This will keep the aspect ratio of the profile picture */
+
+        .close {
+            color: #aaaaaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .rename-button, .delete-button {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s ease;
+            float: right; /* Add this line */
+            margin-right: 10px;
+            color: white;
+        }
+
+        .rename-button {
+            background-image: url('path-to-rename-icon.png');
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .delete-button {
+            background-image: url('path-to-delete-icon.png');
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .rename-button:hover, .delete-button:hover {
+            transform: scale(1.2);
         }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <h2>Channels</h2>
-        <div id="channels"></div>
-        <button id="addChannelButton">+ Add Channel</button>
+        <div id="channels">
+            <!-- Channels will be loaded here -->
+        </div>
+        <div id="usermenu">
+            <div id="selfpreview">
+                <img id="profilePicture" src="" alt="Profile Picture">
+                <span id="profileUsername"></span>
+            </div>
+            <div id="buttonContainer">
+                <button id="muteButton">M</button> <!-- Replace 'M' with your icon -->
+                <button id="defeanButton">D</button> <!-- Replace 'D' with your icon -->
+                <button id="settingsButton">S</button> <!-- Replace 'S' with your icon -->
+            </div>
+        </div>
     </div>
-    <div id="main">
-        <div id="messages"></div>
+    <div id="content">
+        <div id="topMenu">
+            <span id="currentChannel"></span>
+        </div>
+        <div id="messages">
+            <!-- Messages will be loaded here -->
+        </div>
         <form id="messageForm">
-            <input type="text" id="messageInput" placeholder="Type a message...">
+            <input type="text" id="messageInput" placeholder="Enter your message...">
             <button type="submit">Send</button>
         </form>
-        <button id="logoutButton">Logout</button>
     </div>
-    <div id="profileModal" style="display: none;">
-        <h2 id="profileUsername"></h2>
-        <img id="profilePicture" src="" alt="Profile Picture">
-        <p id="profileAbout"></p>
-        <form id="profileForm" style="display: none;">
-            <input type="file" id="profilePictureInput">
-            <textarea id="profileAboutInput"></textarea>
-            <button type="submit">Update</button>
-        </form>
-        <button id="closeModalButton">Close</button> <!-- New close button -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <img id="other_profilePicture" src="" alt="Profile Picture">
+            <h2 id="other_profileUsername"></h2>
+            <p id="other_profileAbout"></p>
+            <form id="profileForm" style="display: none;">
+                <!-- Add form fields here -->
+            </form>
+        </div>
     </div>
-
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
     <script>
+        $('body').addClass('dark-theme');  // Enable the dark theme by default
         var socket = io(window.location.origin + '/subscriptions');
         var currentUser = null;
         var permissionLevel = null;
+        var currentChannel = null;
         var currentProfile = null;
 
         function profileHeartbeat() {
@@ -86,8 +389,13 @@
                 console.log('Sending profile heartbeat for ' + currentProfile);
                 socket.emit('viewing_profile', { profile: currentProfile });
             }
-            console.log(currentProfile +" | "+ $('#profileModal').css('display'));
             setTimeout(profileHeartbeat, 1000);  // Send a heartbeat every second
+        }
+
+        function statusHeartbeat() {
+            //console.log('Sending status heartbeat');
+            socket.emit('status', { status: 'online' });
+            setTimeout(statusHeartbeat, 1500);  // Send a heartbeat every 5 seconds
         }
 
         socket.on('connect', function() {
@@ -98,9 +406,19 @@
                 socket.emit('login', { username: data.username, token: data.token });
                 currentUser = data.username;
                 permissionLevel = data.permissionLevel;
+                $.get('/api/v4/users/' + currentUser, function(data) {
+                    var timestamp = new Date().getTime();
+                    $('#profilePicture').attr('src', data[2] + '?t=' + timestamp);  // Append timestamp to the image URL
+                    $('#profileUsername').text(currentUser);
+                });
                 loadChannels();
             });
             profileHeartbeat();
+            statusHeartbeat();
+
+            if (permissionLevel >= 3) {
+                $('#channels').append('<button id="addChannelButton">+ Add Channel</button>');
+            }
         });
 
         socket.on('update', function(data) {
@@ -108,6 +426,7 @@
             console.log(jsonData);
             var channel = jsonData.channel;
             var action = jsonData.action;
+            var redirect = jsonData.redirect;
             var notif = jsonData.notif;
             if (channel === currentChannel) {
                 loadMessages();
@@ -119,6 +438,9 @@
                 console.log('refreshing modal');
                 loadProfile(currentProfile);
             }
+            if (redirect) {
+                window.location.href = redirect;
+            }
             if (notif) {
                 alert(notif);
             }
@@ -127,10 +449,35 @@
         socket.on('disconnect', function() {
             console.log('Socket.IO connection closed');
         });
-    </script>
 
-    <script>
-        var currentChannel = null;
+        function loadProfile(username) {
+            // Fetch the user's profile data from the server
+            $.get('/api/v4/users/' + username, function(data) {
+                console.log('Profile data:', data); // Log the fetched profile data
+
+                // Update the modal content with the user's profile data
+                $('#other_profilePicture').attr('src', data.profilePicture);
+                $('#other_profileUsername').text(data.username);
+                $('#other_profileAbout').text(data.about);
+
+                // Show the modal
+                $('#profileModal').show();
+
+                // When the user clicks on <span> (x), close the modal
+                $('.close').on('click', function() {
+                    $('#profileModal').hide();
+                });
+
+                // When the user clicks anywhere outside of the modal, close it
+                $(window).on('click', function(event) {
+                    if ($(event.target).is('#profileModal')) {
+                        $('#profileModal').hide();
+                    }
+                });
+            }).fail(function() {
+                console.log('Failed to fetch profile data for user:', username); // Log an error message if the request fails
+            });
+        }
 
         function loadChannels() {
             $.get('/api/v4/channels', function(data) {
@@ -140,11 +487,12 @@
                     if (!firstChannel) firstChannel = channel;
                     var channelElement = $('<div>').text(channel).click(function() {
                         currentChannel = $(this).text();
+                        $('#currentChannel').text(currentChannel);
                         loadMessages();
                     });
                     if (permissionLevel >= 3) {  // Check the permission level
                         (function(channel) {
-                            var deleteButton = $('<button>').text('Delete').click(function() {
+                            var deleteButton = $('<button>').text('D').addClass('delete-button').click(function() {
                                 var confirmDelete = confirm("Are you sure you want to delete this channel?");
                                 if (confirmDelete) {
                                     $.ajax({
@@ -164,7 +512,7 @@
                                     });
                                 }
                             });
-                            var renameButton = $('<button>').text('Rename').click(function() {
+                            var renameButton = $('<button>').text('R').addClass('rename-button').click(function() {
                                 var newChannelName = prompt("Enter the new channel name:");
                                 if (newChannelName) {
                                     $.ajax({
@@ -201,38 +549,37 @@
                 } else {
                     $('#addChannelButton').hide();
                 }
-            });
-        }
-
-        function loadProfile(username) {
-            $.get('/api/v4/users/' + username, function(data) {
-                currentProfile = username;
-                $('#profileUsername').text(username);
-                var timestamp = new Date().getTime();
-                $('#profilePicture').attr('src', data[2] + '?t=' + timestamp);  // Append timestamp to the image URL
-                $('#profileAbout').text(data[0]);  // Use the first element of the array for the about text
-                if (username === currentUser) {
-                    $('#profileForm').show();
-                } else {
-                    $('#profileForm').hide();
-                }
-                $('#profileModal').show();
+                $('#currentChannel').text(currentChannel);
             });
         }
 
         function loadMessages() {
             if (currentChannel && currentUser) {
-                $.get('/api/v4/messages', {channel: currentChannel}, function(data) {
-                    $('#messages').empty();
-                    for (var i = 0; i < data[currentChannel].length; i++) {
+                $.get('/api/v4/messages', { channel: currentChannel }, function(data) {
+                    var messagesContainer = $('#messages');
+                    var isAtBottom = messagesContainer[0].scrollTop + messagesContainer[0].clientHeight === messagesContainer[0].scrollHeight;
+
+                    messagesContainer.empty();
+                    var users = {};
+                    for (var i = 0; i < data.length; i++) {
                         (function(i) {
-                            var message = data[currentChannel][i];
-                            var messageElement = $('<div>').text(': ' + message.message);
-                            var usernameElement = $('<span>').text(message.user).click(function() {
-                                var username = $(this).text();
-                                loadProfile(username);
+                            var message = data[i];
+                            var messageElement = $('<div>').addClass('message');
+                            var profilePictureElement = $('<img>').attr('src', message.profileUrl);
+
+                            if (!users[message.user]) {
+                                users[message.user] = [];
+                            }
+                            users[message.user].push(profilePictureElement);
+
+                            var messageContent = $('<div>').addClass('message-content');
+                            var messageHeader = $('<div>').addClass('message-header');
+                            var usernameElement = $('<span>').addClass('message-username').text(message.user).click(function() {
+                                loadProfile(message.user);
                             });
-                            messageElement.prepend(usernameElement);
+                            var timestampElement = $('<span>').addClass('message-timestamp').text('[' + message.timestamp + ']');
+
+                            var messageActions = $('<div>').addClass('message-actions');
                             if (message.user === currentUser) {
                                 var editButton = $('<button>').text('Edit').click(function() {
                                     var newMessage = prompt("Enter the new message:");
@@ -274,22 +621,31 @@
                                         }
                                     });
                                 });
-                                messageElement.append(editButton, deleteButton);
+                                messageActions.append(editButton, deleteButton);
                             }
+
+                            var messageTextElement = $('<div>').text(message.message);
+
+                            messageHeader.append(usernameElement, timestampElement);
+                            messageContent.append(messageHeader, messageTextElement);
+                            messageElement.append(profilePictureElement, messageContent, messageActions);
                             $('#messages').append(messageElement);
                         })(i);
+                    }
+
+                    if (isAtBottom) {
+                        messagesContainer[0].scrollTop = messagesContainer[0].scrollHeight;
                     }
                 });
             }
         }
-
         $('#messageForm').submit(function(e) {
             e.preventDefault();
             var message = $('#messageInput').val();
             $.ajax({
                 url: '/api/v4/messages',
                 type: 'POST',
-                data: JSON.stringify({channel: currentChannel, message: message}),
+                data: JSON.stringify({ channel: currentChannel, message: message }),
                 contentType: 'application/json',
                 success: function() {
                     loadMessages();
@@ -315,7 +671,7 @@
                 $.ajax({
                     url: '/api/v4/channels',
                     type: 'POST',
-                    data: JSON.stringify({name: channelName}),
+                    data: JSON.stringify({ name: channelName }),
                     contentType: 'application/json',
                     success: function() {
                         loadChannels();

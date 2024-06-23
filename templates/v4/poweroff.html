@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Rebooting</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #343a40;
+            color: #fff;
+        }
+        .container {
+            max-width: 330px;
+            padding: 15px;
+            margin: auto;
+        }
+    </style>
+    <script>
+        function checkServer() {
+            fetch('/login')
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/login';
+                    } else {
+                        throw new Error('Server not ready');
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    setTimeout(checkServer, 5000);
+                });
+        }
+        window.onload = function() {
+            setTimeout(checkServer, 5000);
+        };
+    </script>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="text-center">Server is currently rebooting...</h1>
+            <p>We will attempt to reconnect you every 5 seconds. Once the server is back online, you will be redirected to the login page.</p>
+        </div>
+    </body>
+    </html>
