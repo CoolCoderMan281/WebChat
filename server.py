@@ -124,6 +124,8 @@ def get_channels():
         if checksession(session):
             if checkauth(session['username'], session['token']):
                 if hasPerm(session['username'], 3):
+                    if request.json['name'] in channels:
+                        return jsonify({"error":"Channel already exists."})
                     name = request.json['name']
                     channels[name] = []
                     send_updates({"action":"refresh_channels"})
@@ -135,6 +137,10 @@ def get_channels():
         if checksession(session):
             if checkauth(session['username'], session['token']):
                 if hasPerm(session['username'], 3):
+                    if request.json['name'] not in channels:
+                        return jsonify({"error":"Channel not found."})
+                    if request.json['newname'] in channels:
+                        return jsonify({"error":"Channel already exists."})
                     name = request.json['name']
                     newname = request.json['newname']
                     channels[newname] = channels.pop(name)

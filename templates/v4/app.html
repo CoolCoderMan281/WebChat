@@ -285,11 +285,12 @@
         }
 
         .modal-content {
-            background-color: #fefefe;
             margin: auto;
+            background-color: #333;
             padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
+            border-radius: 10px;
+            max-width: calc(30vw + 10px); /* Add some padding */
+            max-height: calc(80vh - 20px); /* Subtract some padding */
         }
 
         .close {
@@ -319,20 +320,52 @@
         }
 
         .rename-button {
-            background-image: url('path-to-rename-icon.png');
             background-repeat: no-repeat;
             background-position: center;
         }
 
         .delete-button {
-            background-image: url('path-to-delete-icon.png');
             background-repeat: no-repeat;
             background-position: center;
         }
 
         .rename-button:hover, .delete-button:hover {
-            transform: scale(1.2);
+            transform: scale(1.5);
         }
+
+        .about-me {
+        margin-top: 10px;
+        }
+
+        .modal-content {
+        background-color: #333;
+        padding: 20px;
+        border-radius: 10px;
+        }
+
+        .profile-picture-container {
+        position: relative; /* Add this to make it work */
+        }
+
+        .profile-picture {
+        width: 50px;
+        height: 50px;
+        border-radius: 25px;
+        background-color: #ccc;
+        display: inline-block; /* Change this from flexbox to inline-block */
+        }
+
+        .online-status-dot {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background-color: gray;
+        }
+
+
     </style>
 </head>
 <body>
@@ -346,9 +379,9 @@
                 <span id="profileUsername"></span>
             </div>
             <div id="buttonContainer">
-                <button id="muteButton">M</button> <!-- Replace 'M' with your icon -->
-                <button id="defeanButton">D</button> <!-- Replace 'D' with your icon -->
-                <button id="settingsButton">S</button> <!-- Replace 'S' with your icon -->
+                <!-- <button id="muteButton">M</button> Replace 'M' with your icon
+                <button id="defeanButton">D</button> Replace 'D' with your icon
+                <button id="settingsButton">S</button> Replace 'S' with your icon -->
             </div>
         </div>
     </div>
@@ -366,14 +399,16 @@
     </div>
     <div id="profileModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <img id="other_profilePicture" src="" alt="Profile Picture">
-            <h2 id="other_profileUsername"></h2>
-            <p id="other_profileAbout"></p>
-            <form id="profileForm" style="display: none;">
-                <!-- Add form fields here -->
+            <div class="profile-picture-container">
+              <img id="other_profilePicture" src="" alt="Profile Picture" class="profile-picture">
+              <span class="online-status-dot" style="background-color: gray"></span>
+            </div>
+            <h2 id="other_profileUsername" class="username">Username</h2>
+            <p id="other_profileAbout" class="about-me">About Me</p>
+            <form id="profileForm">
+              <!-- Form fields go here -->
             </form>
-        </div>
+          </div>
     </div>
     <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
     <script>
@@ -388,6 +423,7 @@
             if (currentProfile && $('#profileModal').css('display') !== 'none') {
                 console.log('Sending profile heartbeat for ' + currentProfile);
                 socket.emit('viewing_profile', { profile: currentProfile });
+                console.log("viewing_profile: { profile: " + currentProfile + " }");
             }
             setTimeout(profileHeartbeat, 1000);  // Send a heartbeat every second
         }
@@ -451,14 +487,21 @@
         });
 
         function loadProfile(username) {
+            currentProfile = username;
             // Fetch the user's profile data from the server
             $.get('/api/v4/users/' + username, function(data) {
                 console.log('Profile data:', data); // Log the fetched profile data
 
                 // Update the modal content with the user's profile data
-                $('#other_profilePicture').attr('src', data.profilePicture);
-                $('#other_profileUsername').text(data.username);
-                $('#other_profileAbout').text(data.about);
+                $('#other_profilePicture').attr('src', data[2]);
+                $('#other_profileUsername').text(username);
+                $('#other_profileAbout').text(data[0]);
+
+                if(data[1] === 'online') {
+                    $('.online-status-dot').css('background-color', 'green');
+                } else {
+                    $('.online-status-dot').css('background-color', 'gray');
+                }
 
                 // Show the modal
                 $('#profileModal').show();
@@ -466,45 +509,82 @@
                 // When the user clicks on <span> (x), close the modal
                 $('.close').on('click', function() {
                     $('#profileModal').hide();
+                    currentProfile = null;
                 });
 
                 // When the user clicks anywhere outside of the modal, close it
                 $(window).on('click', function(event) {
                     if ($(event.target).is('#profileModal')) {
                         $('#profileModal').hide();
+                        currentProfile = null;
                     }
                 });
             }).fail(function() {
                 console.log('Failed to fetch profile data for user:', username); // Log an error message if the request fails
+                currentProfile = null;
             });
+        }
+
+        function create_channel() {
+            if (permissionLevel < 3) {
+                alert("You do not have permission to create channels");
+                return;
+            }
+            var channelName = prompt('Enter the name of the new channel:');
+            if (channelName == "") {
+                alert("Channel name cannot be empty");
+                return;
+            }
+            if (channelName) {
+                $.ajax({
+                    url: '/api/v4/channels',
+                    type: 'POST',
+                    data: JSON.stringify({ name: channelName }),
+                    contentType: 'application/json',
+                    success: function() {
+                        loadChannels();
+                    }
+                });
+            }
         }
 
         function loadChannels() {
             $.get('/api/v4/channels', function(data) {
                 $('#channels').empty();
                 var firstChannel = null;
+                if (!currentChannel in data) {
+                    alert("Channel you were in is not found.")
+                    currentChannel = null;
+                }
                 for (var channel in data) {
                     if (!firstChannel) firstChannel = channel;
-                    var channelElement = $('<div>').text(channel).click(function() {
-                        currentChannel = $(this).text();
-                        $('#currentChannel').text(currentChannel);
-                        loadMessages();
-                    });
-                    if (permissionLevel >= 3) {  // Check the permission level
-                        (function(channel) {
-                            var deleteButton = $('<button>').text('D').addClass('delete-button').click(function() {
+                    var me = channel;
+                    
+                    // Create a separate function for each channel element
+                    function createChannelElement(channel) {
+                        var channelElement = $('<div>');
+                        channelElement.text(channel);
+                        
+                        channelElement.click(function() {
+                            console.log('Switching to channel:', channel);
+                            currentChannel = channel;
+                            $('#currentChannel').text(currentChannel);
+                            loadMessages();
+                        });
+                        
+                        if (permissionLevel >= 3) {  
+                            var deleteButton = $('<button>🗑️</button>').addClass('delete-button');
+                            deleteButton.click(function() {
                                 var confirmDelete = confirm("Are you sure you want to delete this channel?");
                                 if (confirmDelete) {
                                     $.ajax({
                                         url: '/api/v4/channels',
                                         type: 'DELETE',
                                         contentType: 'application/json',
-                                        data: JSON.stringify({
-                                            name: channel
-                                        }),
+                                        data: JSON.stringify({ name: currentChannel }),
                                         success: function(response) {
                                             if (response.success) {
-                                                loadChannels();  // Reload the channels
+                                                loadChannels();  
                                             } else {
                                                 alert("Failed to delete channel: " + response.error);
                                             }
@@ -512,20 +592,19 @@
                                     });
                                 }
                             });
-                            var renameButton = $('<button>').text('R').addClass('rename-button').click(function() {
+                            
+                            var renameButton = $('<button>✏️</button>').addClass('rename-button');
+                            renameButton.click(function() {
                                 var newChannelName = prompt("Enter the new channel name:");
                                 if (newChannelName) {
                                     $.ajax({
                                         url: '/api/v4/channels',
                                         type: 'PATCH',
                                         contentType: 'application/json',
-                                        data: JSON.stringify({
-                                            name: channel,
-                                            newname: newChannelName
-                                        }),
+                                        data: JSON.stringify({ name: currentChannel, newname: newChannelName }),
                                         success: function(response) {
                                             if (response.success) {
-                                                loadChannels();  // Reload the channels
+                                                loadChannels();  
                                             } else {
                                                 alert("Failed to rename channel: " + response.error);
                                             }
@@ -533,11 +612,17 @@
                                     });
                                 }
                             });
+                            
                             channelElement.append(deleteButton, renameButton);
-                        })(channel);
+                        }
+                        
+                        $('#channels').append(channelElement);
                     }
-                    $('#channels').append(channelElement);
+                    
+                    createChannelElement(me);
                 }
+
+
                 if (!currentChannel) {
                     currentChannel = firstChannel;
                     loadMessages();
@@ -555,6 +640,7 @@
 
         function loadMessages() {
             if (currentChannel && currentUser) {
+                currentChannel
                 $.get('/api/v4/messages', { channel: currentChannel }, function(data) {
                     var messagesContainer = $('#messages');
                     var isAtBottom = messagesContainer[0].scrollTop + messagesContainer[0].clientHeight === messagesContainer[0].scrollHeight;
